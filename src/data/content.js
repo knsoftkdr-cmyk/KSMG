@@ -2,6 +2,15 @@
 // Rule from the brief: never publish certifications, clients, capacity or achievements without evidence.
 const TBC = 'Company to confirm: this page has no verified details yet.';
 export const CONTENT = {
+  export: { title: 'Export & Distributors', intro: 'Enquiries from overseas buyers and distributors.', notice: 'Company to confirm: export markets, terms and distributor programme are not yet verified.', sections: [
+    { h: 'What to include in an export enquiry', list: ['Country and city of delivery', 'Products, sizes and quantities', 'Preferred currency and shipping terms', 'Packaging requirements', 'Any destination-country standards that apply'] },
+    { h: 'Distributors', p: 'If you would like to represent Prasanna Reddy Garments in your region, tell us about your business in the quote request. Terms are to be confirmed by the company.' },
+    { h: 'Send an export enquiry', cta: true }] },
+  tenders: { title: 'Government Tenders', intro: 'Supply of uniforms to government and public-sector bodies.', notice: 'Company to confirm: tender eligibility and registrations are not yet verified. This site is not connected to GeM, CPPP or any state procurement portal.', sections: [
+    { h: 'What we need to respond to a tender', list: ['Tender notice and specifications', 'Product, sizes and quantities', 'Delivery locations and deadlines', 'Any EMD or eligibility requirements'] },
+    { h: 'Send tender details', p: 'Share the tender details in the quote request and our team will review them.', cta: true }] },
+  blog: { title: 'Blog', intro: 'Guides and news about uniforms.', notice: 'No articles have been published yet.', sections: [
+    { h: 'Coming soon', p: 'Articles will be added here by the company.' }] },
   manufacturing: { title: 'Manufacturing', intro: 'How uniforms are made, from fabric to dispatch.', notice: TBC, sections: [
     { h: 'Our process', list: ['Design and technical review', 'Fabric sourcing and cutting', 'Stitching and finishing', 'Quality checks', 'Packing and dispatch'] },
     { h: 'Facilities and capacity', p: 'To be provided by the company. No capacity figures are published until they are verified.' }] },
