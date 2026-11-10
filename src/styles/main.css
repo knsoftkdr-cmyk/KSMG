@@ -193,3 +193,40 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--gold);bo
   .mega-grid { grid-template-columns: 1fr; }
   .mega-grid a { padding: 6px 8px; font-size: 0.9rem; }
 }
+
+/* ===== Mega-menu: phone tap toggle ===== */
+.mega-toggle { display: none; }
+.mega-panel .mega-all { color: #c9a24a; }
+
+@media (max-width: 899px) {
+  .mega {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .mega-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    font-size: 1.2rem;
+    line-height: 1;
+    color: #f6f2e8;
+    background: transparent;
+    border: 1px solid rgba(201, 162, 74, 0.6);
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .mega-panel { display: none; flex-basis: 100%; }
+  .mega.open .mega-panel { display: block; }
+}
+
+/* ===== Mega-menu: phone fix (close on tap) ===== */
+@media (max-width: 899px) {
+  .mega:hover .mega-panel,
+  .mega:focus-within .mega-panel { display: none; }
+  .mega.open .mega-panel { display: block; }
+}

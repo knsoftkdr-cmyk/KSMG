@@ -6,15 +6,23 @@ import { INDUSTRIES } from '../data/industries.js';
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
-  const close = () => setOpen(false);
+  const [mega, setMega] = useState(false);
+  const close = () => { setOpen(false); setMega(false); };
   return (
     <header className="nav">
       <Link to="/" className="brand" onClick={close}>{COMPANY.brand}<small>KSMG Global</small></Link>
       <button className="menu" aria-expanded={open} aria-label="Menu" onClick={() => setOpen(!open)}>{open ? 'Close' : 'Menu'}</button>
       <nav className={open ? 'open' : ''} onClick={close}>
         <NavLink to="/" end>Home</NavLink>
-        <div className="mega">
+        <div className={mega ? 'mega open' : 'mega'}>
           <NavLink to="/industries">Industries</NavLink>
+          <button
+            type="button"
+            className="mega-toggle"
+            aria-expanded={mega}
+            aria-label="Show industries list"
+            onClick={e => { e.stopPropagation(); setMega(!mega); }}
+          >{mega ? '−' : '+'}</button>
           <div className="mega-panel">
             <div className="mega-grid">
               {INDUSTRIES.map(i => (
