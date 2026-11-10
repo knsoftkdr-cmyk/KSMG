@@ -123,3 +123,73 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--gold);bo
 .group{border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:14px;margin:0;background:var(--card)}
 .group legend{font-weight:700;padding:0 8px;color:var(--head)}
 .pre{white-space:pre-line}
+
+/* ===== Industries mega-menu ===== */
+.mega { position: relative; }
+.mega-panel {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: min(760px, 92vw);
+  padding: 18px;
+  margin-top: 10px;
+  background: #0a1330;
+  border: 1px solid rgba(201, 162, 74, 0.4);
+  border-radius: 14px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  z-index: 60;
+}
+.mega-panel::before {
+  content: "";
+  position: absolute;
+  top: -12px;
+  left: 0;
+  right: 0;
+  height: 12px;
+}
+.mega:hover .mega-panel,
+.mega:focus-within .mega-panel { display: block; }
+.mega-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px 14px;
+}
+.mega-grid a {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: #f6f2e8;
+  font-size: 0.92rem;
+  line-height: 1.3;
+  text-decoration: none;
+}
+.mega-grid a:hover,
+.mega-grid a:focus-visible { background: rgba(201, 162, 74, 0.16); color: #c9a24a; }
+.mega-all {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 8px 10px;
+  color: #c9a24a;
+  font-weight: 600;
+  text-decoration: none;
+}
+.mega-all:hover { text-decoration: underline; }
+
+@media (max-width: 899px) {
+  .mega-panel {
+    display: block;
+    position: static;
+    width: 100%;
+    margin-top: 6px;
+    padding: 8px 0 8px 12px;
+    background: transparent;
+    border: 0;
+    border-left: 2px solid rgba(201, 162, 74, 0.4);
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .mega-panel::before { display: none; }
+  .mega-grid { grid-template-columns: 1fr; }
+  .mega-grid a { padding: 6px 8px; font-size: 0.9rem; }
+}

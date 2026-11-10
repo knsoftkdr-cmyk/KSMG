@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import Settings from './Settings.jsx';
 import { COMPANY } from '../data/company.js';
+import { INDUSTRIES } from '../data/industries.js';
+
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
@@ -10,7 +12,18 @@ export default function Navbar() {
       <Link to="/" className="brand" onClick={close}>{COMPANY.brand}<small>KSMG Global</small></Link>
       <button className="menu" aria-expanded={open} aria-label="Menu" onClick={() => setOpen(!open)}>{open ? 'Close' : 'Menu'}</button>
       <nav className={open ? 'open' : ''} onClick={close}>
-        <NavLink to="/industries">Industries</NavLink>
+        <NavLink to="/" end>Home</NavLink>
+        <div className="mega">
+          <NavLink to="/industries">Industries</NavLink>
+          <div className="mega-panel">
+            <div className="mega-grid">
+              {INDUSTRIES.map(i => (
+                <Link key={i.slug} to={`/industries/${i.slug}`}>{i.name}</Link>
+              ))}
+            </div>
+            <Link to="/industries" className="mega-all">View all industries</Link>
+          </div>
+        </div>
         <NavLink to="/products">Products</NavLink>
         <NavLink to="/about">About</NavLink>
         <NavLink to="/contact">Contact</NavLink>
