@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { INDUSTRIES } from '../data/industries.js';
 
-const GARMENTS = ['Shirt', 'Trousers', 'Apron'];
+const GARMENTS = ['Shirt', 'Trousers', 'Apron', 'Skirt', 'Pinafore', 'Blazer', 'Scrub top', 'Lab coat', 'Chef coat'];
 const FABRICS = ['Cotton', 'Poly-cotton blend', 'Polyester', 'To be advised by sales team'];
 const COLOURS = [
   ['Navy', '#0a1330'], ['White', '#ffffff'], ['Sky blue', '#7fb2e5'], ['Grey', '#8b8f98'],
@@ -15,8 +15,17 @@ const SHAPES = {
   Shirt: 'M60 20 L80 12 Q100 28 120 12 L140 20 L180 55 L160 85 L142 72 L142 205 L58 205 L58 72 L40 85 L20 55 Z',
   Trousers: 'M55 15 L145 15 L152 205 L108 205 L100 85 L92 205 L48 205 Z',
   Apron: 'M75 10 L125 10 L128 55 L160 70 L150 205 L50 205 L40 70 L72 55 Z',
+  Skirt: 'M65 20 L135 20 L170 205 L30 205 Z',
+  Pinafore: 'M70 10 L85 10 L90 45 L110 45 L115 10 L130 10 L135 55 L170 205 L30 205 L65 55 Z',
+  Blazer: 'M58 18 L85 10 L100 45 L115 10 L142 18 L182 55 L165 90 L146 76 L146 205 L54 205 L54 76 L35 90 L18 55 Z',
+  'Scrub top': 'M62 18 L88 12 L100 40 L112 12 L138 18 L178 45 L162 72 L145 62 L145 190 L55 190 L55 62 L38 72 L22 45 Z',
+  'Lab coat': 'M58 18 L82 10 L100 45 L118 10 L142 18 L182 55 L168 100 L150 88 L152 212 L48 212 L50 88 L32 100 L18 55 Z',
+  'Chef coat': 'M60 22 L80 12 L100 30 L120 12 L140 22 L182 58 L166 92 L146 78 L146 205 L54 205 L54 78 L34 92 L18 58 Z',
 };
-const LOGO_POS = { Shirt: [118, 50], Trousers: [108, 28], Apron: [85, 80] };
+const LOGO_POS = {
+  Shirt: [118, 50], Trousers: [108, 28], Apron: [85, 80], Skirt: [105, 40], Pinafore: [84, 75],
+  Blazer: [120, 60], 'Scrub top': [116, 52], 'Lab coat': [118, 60], 'Chef coat': [118, 52],
+};
 
 export default function DesignStudio() {
   const [industry, setIndustry] = useState(INDUSTRIES[0].slug);
