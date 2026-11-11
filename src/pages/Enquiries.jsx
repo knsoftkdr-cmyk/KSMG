@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getAll, save, remove } from '../services/db.js';
+import { listEnquiries, setEnquiryStatus } from '../services/enquiries.js';
 import usePageMeta from '../hooks/usePageMeta.js';
 
 const STATUSES = ['New', 'In review', 'Quoted', 'Closed'];
@@ -8,11 +8,13 @@ export default function Enquiries() {
   usePageMeta('Quote requests');
   const [list, setList] = useState(null);
   const [filter, setFilter] = useState('All');
-  const load = () => getAll('enquiries').then(r => setList(r.sort((a, b) => b.createdAt - a.createdAt)));
+  const [err, setErr] = useState('');
+  const load = () => listEnquiries().then(setList).catch(() => { setErr('Could not load quote requests.'); setList([]); });
   useEffect(() => { load(); }, []);
 
   const changeStatus = async (e, status) => {
-    await save('enquiries', { ...e, status });
+    setErr('');
+    try { await setEnquiryStatus(e.id, status); } catch { setErr('Could not change the status.'); }
     load();
   };
 
@@ -22,7 +24,7 @@ export default function Enquiries() {
   return (
     <section className="wrap">
       <h1>Quote requests</h1>
-      <p className="rfq-note">Demo: this page is open to everyone for now. It will be restricted to staff logins with the backend.</p>
+      {err && <p className="err" role="alert">{err}</p>}
       <label className="rfq-filter">Show
         <select value={filter} onChange={e => setFilter(e.target.value)}>
           <option>All</option>
@@ -34,7 +36,7 @@ export default function Enquiries() {
         const status = e.status || 'New';
         return (
           <div key={e.id} className="card">
-            <p className="rfq-id small">{e.rfqId || 'No ID (older request)'}</p>
+            <p className="rfq-id small">{e.rfqId}</p>
             <h2>{e.name}{e.organisation && `, ${e.organisation}`}</h2>
             {e.industry && <p>Industry: {e.industry}</p>}
             <p>{e.email} {e.phone && `| ${e.phone}`}</p>
@@ -47,7 +49,6 @@ export default function Enquiries() {
               <select value={status} onChange={ev => changeStatus(e, ev.target.value)} aria-label="Change status">
                 {STATUSES.map(s => <option key={s}>{s}</option>)}
               </select>
-              <button className="btn ghost" onClick={async () => { await remove('enquiries', e.id); load(); }}>Delete</button>
             </div>
           </div>
         );

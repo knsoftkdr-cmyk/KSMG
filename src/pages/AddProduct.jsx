@@ -25,7 +25,7 @@ export default function AddProduct() {
     e.preventDefault();
     if (!f.name.trim()) return setErr('Product name is required.');
     const item = old ? { ...old, ...f, photos: files.length ? files : old.photos } : { ...f, id: newId(), photos: files, sample: false, createdAt: Date.now() };
-    await save('products', item);
+    try { await save('products', item); } catch { return setErr('Could not save. Please log in as a product manager and try again.'); }
     nav(`/products/${item.id}`);
   };
   return (

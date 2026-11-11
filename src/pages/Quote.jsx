@@ -1,19 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { getAll, save, newId } from '../services/db.js';
+import { getAll } from '../services/db.js';
+import { submitEnquiry } from '../services/enquiries.js';
 import { INDUSTRIES } from '../data/industries.js';
 import usePageMeta from '../hooks/usePageMeta.js';
-
-async function nextRfqId() {
-  const all = await getAll('enquiries');
-  const y = new Date().getFullYear();
-  const nums = all
-    .map(e => e.rfqId)
-    .filter(id => id && id.startsWith(`RFQ-${y}-`))
-    .map(id => Number(id.split('-')[2]) || 0);
-  const n = (nums.length ? Math.max(...nums) : 0) + 1;
-  return `RFQ-${y}-${String(n).padStart(4, '0')}`;
-}
 
 export default function Quote() {
   usePageMeta('Request a quote', 'Send your uniform requirements, sizes and quantities to get a quotation from Prasanna Reddy Garments.');
@@ -26,6 +16,7 @@ export default function Quote() {
   });
   const [rfqId, setRfqId] = useState('');
   const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
   useEffect(() => { getAll('products').then(setProducts); }, []);
   const set = k => e => setF({ ...f, [k]: e.target.value });
 
@@ -38,26 +29,23 @@ export default function Quote() {
     if (f.quantity && Number(f.quantity) < 1) return setErr('Quantity must be 1 or more.');
     if (f.neededBy && f.neededBy < new Date().toLocaleDateString('en-CA')) return setErr('Needed-by date cannot be in the past.');
     setErr('');
-    const p = products.find(x => x.id === f.productId);
-    const id = await nextRfqId();
-    await save('enquiries', {
-      ...f,
-      id: newId(),
-      rfqId: id,
-      status: 'New',
-      productName: p?.name || '',
-      createdAt: Date.now(),
-    });
-    setRfqId(id);
+    setBusy(true);
+    try {
+      const p = products.find(x => x.id === f.productId);
+      setRfqId(await submitEnquiry({ ...f, email }, p?.name || ''));
+    } catch {
+      setErr('Could not send your request. Please try again.');
+    }
+    setBusy(false);
   };
 
   if (rfqId) {
     return (
       <section className="wrap narrow">
         <h1>Thank you</h1>
-        <p>Your quote request is saved. Your reference number is:</p>
+        <p>Your quote request is received. Your reference number is:</p>
         <p className="rfq-id">{rfqId}</p>
-        <p className="rfq-note">Demo note: at this stage requests are saved only in this browser. They will reach the sales team once the backend is connected.</p>
+        <p className="rfq-note">Our sales team will review your request. Please keep this reference number.</p>
         <Link to="/products" className="btn ghost">Back to products</Link>
       </section>
     );
@@ -88,7 +76,7 @@ export default function Quote() {
         <label>Needed by (date)<input type="date" value={f.neededBy} onChange={set('neededBy')} /></label>
         <label>Details (sizes, logo, other needs)<textarea rows="4" value={f.message} onChange={set('message')} /></label>
         {err && <p className="err" role="alert">{err}</p>}
-        <button className="btn gold">Send quote request</button>
+        <button className="btn gold" disabled={busy}>{busy ? 'Sending...' : 'Send quote request'}</button>
       </form>
     </section>
   );

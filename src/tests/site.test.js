@@ -2,8 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { INDUSTRIES, industryName } from '../data/industries.js';
 import { CONTENT } from '../data/content.js';
-import { newId } from '../services/db.js';
-
+import { newId } from '../services/ids.js';
 const sitemap = readFileSync('public/sitemap.xml', 'utf8');
 const robots = readFileSync('public/robots.txt', 'utf8');
 
