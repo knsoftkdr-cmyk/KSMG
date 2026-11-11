@@ -25,11 +25,19 @@ export default function Quote() {
     location: '', neededBy: '', message: '',
   });
   const [rfqId, setRfqId] = useState('');
+  const [err, setErr] = useState('');
   useEffect(() => { getAll('products').then(setProducts); }, []);
   const set = k => e => setF({ ...f, [k]: e.target.value });
 
   const submit = async e => {
     e.preventDefault();
+    const email = f.email.trim(), digits = f.phone.replace(/\D/g, '');
+    if (f.name.trim().length < 2) return setErr('Please enter your name.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return setErr('Please enter a valid email, like name@example.com.');
+    if (f.phone.trim() && (digits.length < 8 || digits.length > 15)) return setErr('Phone number should have 8 to 15 digits.');
+    if (f.quantity && Number(f.quantity) < 1) return setErr('Quantity must be 1 or more.');
+    if (f.neededBy && f.neededBy < new Date().toLocaleDateString('en-CA')) return setErr('Needed-by date cannot be in the past.');
+    setErr('');
     const p = products.find(x => x.id === f.productId);
     const id = await nextRfqId();
     await save('enquiries', {
@@ -79,6 +87,7 @@ export default function Quote() {
         <label>Delivery location (city, country)<input value={f.location} onChange={set('location')} /></label>
         <label>Needed by (date)<input type="date" value={f.neededBy} onChange={set('neededBy')} /></label>
         <label>Details (sizes, logo, other needs)<textarea rows="4" value={f.message} onChange={set('message')} /></label>
+        {err && <p className="err" role="alert">{err}</p>}
         <button className="btn gold">Send quote request</button>
       </form>
     </section>
