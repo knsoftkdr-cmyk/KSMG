@@ -2,11 +2,14 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { get, getAll, remove } from '../services/db.js';
 import { industryName } from '../data/industries.js';
+import { useAuth } from '../services/auth.jsx';
 import Photo from '../components/Photo.jsx';
 import usePageMeta from '../hooks/usePageMeta.js';
 import useProductSchema from '../hooks/useProductSchema.js';
 export default function ProductDetail() {
   const { id } = useParams(); const nav = useNavigate();
+  const { role } = useAuth();
+  const canManage = role === 'product_manager' || role === 'super_admin';
   const [p, setP] = useState(undefined); const [related, setRelated] = useState([]);
   usePageMeta(p?.name || 'Product', p?.description);
   useProductSchema(p);
@@ -33,8 +36,8 @@ export default function ProductDetail() {
           {blocks.map(([h, t]) => <div key={h}><h3>{h}</h3><p className="pre">{t}</p></div>)}
           <div className="row">
             <Link className="btn gold" to={`/quote?product=${p.id}`}>Request a quote</Link>
-            <Link className="btn ghost" to={`/admin/edit-product/${p.id}`}>Edit</Link>
-            <button className="btn ghost" onClick={async () => { if (confirm('Delete this product?')) { await remove('products', p.id); nav('/products'); } }}>Delete</button>
+            {canManage && <Link className="btn ghost" to={`/admin/edit-product/${p.id}`}>Edit</Link>}
+            {canManage && <button className="btn ghost" onClick={async () => { if (confirm('Delete this product?')) { await remove('products', p.id); nav('/products'); } }}>Delete</button>}
           </div>
         </div>
       </div>
