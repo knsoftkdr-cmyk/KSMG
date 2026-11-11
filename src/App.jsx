@@ -18,8 +18,9 @@ import { CONTENT } from './data/content.js';
 export default function App() {
   return (
     <>
+       <a href="#main" className="skip" onClick={e => { e.preventDefault(); document.getElementById('main')?.focus(); }}>Skip to main content</a>
       <Navbar />
-      <main>
+      <main id="main" tabIndex={-1}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/industries" element={<Industries />} />
