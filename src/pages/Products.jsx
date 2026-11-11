@@ -32,7 +32,7 @@ export default function Products() {
           {list.map(p => (
             <Link key={p.id} to={`/products/${p.id}`} className="card prod">
               <Photo blob={p.photos[0]} alt={p.name} />
-              <h3>{p.name}{p.sample && <span className="tag">Sample</span>}</h3>
+              <h2>{p.name}{p.sample && <span className="tag">Sample</span>}</h2>
               <p>{industryName(p.industry)}</p>
             </Link>
           ))}

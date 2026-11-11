@@ -33,7 +33,7 @@ export default function Enquiries() {
         return (
           <div key={e.id} className="card">
             <p className="rfq-id small">{e.rfqId || 'No ID (older request)'}</p>
-            <h3>{e.name}{e.organisation && `, ${e.organisation}`}</h3>
+            <h2>{e.name}{e.organisation && `, ${e.organisation}`}</h2>
             {e.industry && <p>Industry: {e.industry}</p>}
             <p>{e.email} {e.phone && `| ${e.phone}`}</p>
             <p>{e.productName || 'No product chosen'}{e.quantity && ` | Qty ${e.quantity}`}</p>
