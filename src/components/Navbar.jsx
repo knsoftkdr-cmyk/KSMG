@@ -42,6 +42,7 @@ export default function Navbar() {
         {['sales', 'super_admin'].includes(role) && <NavLink to="/admin/enquiries">Enquiries</NavLink>}
         {['sales', 'super_admin'].includes(role) && <NavLink to="/admin/dashboard">Dashboard</NavLink>}
         {role === 'super_admin' && <NavLink to="/admin/staff">Staff</NavLink>}
+        {user && <NavLink to="/my-requests">My requests</NavLink>}
         <NavLink to="/login">{user ? 'Account' : 'Log in'}</NavLink>
         <Link to="/quote" className="btn gold">Request a quote</Link>
         <Settings />

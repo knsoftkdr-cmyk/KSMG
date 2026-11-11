@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { listEnquiries, setEnquiryStatus, listEvents, addNote, listQuotes, addQuote } from '../services/enquiries.js';
+import { listEnquiries, setEnquiryStatus, listEvents, addNote, listQuotes, addQuote, sendQuote } from '../services/enquiries.js';
 import usePageMeta from '../hooks/usePageMeta.js';
 
 const STATUSES = ['New', 'In review', 'Quoted', 'Closed'];
@@ -62,9 +62,20 @@ function Quotes({ enquiry, quotes, onAdded, onError }) {
     setBusy(false);
   };
 
+  const send = async q => {
+    if (!window.confirm(`Send quote v${q.version} to the customer? They will be able to see it. This cannot be undone.`)) return;
+    setBusy(true);
+    try { await sendQuote(q.id); onError(''); await onAdded(); }
+    catch { onError('Could not send the quote.'); }
+    setBusy(false);
+  };
+
   return (
     <details className="rfq-events">
       <summary>Quote versions ({quotes.length})</summary>
+      {!enquiry.userId && (
+        <p className="note">This request was sent without login, so the customer cannot see quotes on the website. Send the quote by email or phone.</p>
+      )}
       {quotes.length === 0 && <p>No quote created yet.</p>}
       <ul>
         {[...quotes].reverse().map(q => {
@@ -77,6 +88,14 @@ function Quotes({ enquiry, quotes, onAdded, onError }) {
               {q.validUntil && <> | Valid until {q.validUntil}</>}
               {q.notes && <><br />{q.notes}</>}
               <br /><small>{q.by || 'Unknown'} | {new Date(q.createdAt).toLocaleString()}</small>
+              {q.sentAt
+                ? <><br /><small><strong>Sent to customer</strong> | {new Date(q.sentAt).toLocaleString()}</small></>
+                : <>
+                    <br /><small>Draft: the customer cannot see this yet.</small>
+                    {enquiry.userId && (
+                      <> <button type="button" className="btn ghost" disabled={busy} onClick={() => send(q)}>Send to customer</button></>
+                    )}
+                  </>}
             </li>
           );
         })}
@@ -86,7 +105,7 @@ function Quotes({ enquiry, quotes, onAdded, onError }) {
       <label>Quantity<input type="number" min="1" step="1" value={f.qty} onChange={set('qty')} /></label>
       <label>GST %<input type="number" min="0" max="100" step="0.01" value={f.gst} onChange={set('gst')} /></label>
       <label>Valid until<input type="date" value={f.valid} min={today} onChange={set('valid')} /></label>
-      <label>Notes<textarea rows="2" value={f.note} onChange={set('note')} maxLength={2000} /></label>
+      <label>Notes (the customer sees these after you send)<textarea rows="2" value={f.note} onChange={set('note')} maxLength={2000} /></label>
       <button type="button" className="btn gold" disabled={busy} onClick={add}>{busy ? 'Saving...' : 'Save quote version'}</button>
     </details>
   );

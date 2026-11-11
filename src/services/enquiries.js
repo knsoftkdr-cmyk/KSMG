@@ -4,6 +4,7 @@ const fromRow = r => ({
   id: r.id, rfqId: r.rfq_id, status: r.status, name: r.name, organisation: r.organisation,
   industry: r.industry, email: r.email, phone: r.phone, productName: r.product_name,
   quantity: r.quantity, location: r.location, neededBy: r.needed_by, message: r.message,
+  userId: r.user_id,
   createdAt: new Date(r.created_at).getTime(),
 });
 
@@ -52,6 +53,7 @@ export async function listQuotes() {
     id: r.id, enquiryId: r.enquiry_id, version: r.version, unitPrice: Number(r.unit_price),
     quantity: r.quantity, gst: Number(r.gst_percent), validUntil: r.valid_until, notes: r.notes,
     by: r.author_email, createdAt: new Date(r.created_at).getTime(),
+    sentAt: r.sent_at ? new Date(r.sent_at).getTime() : null,
   }));
 }
 
@@ -61,4 +63,24 @@ export async function addQuote(enquiryId, q) {
   });
   if (error) throw error;
   return data;
+}
+
+export async function sendQuote(quoteId) {
+  const { error } = await supabase.rpc('send_quote_version', { quote: quoteId });
+  if (error) throw error;
+}
+
+export async function myRequests() {
+  const { data, error } = await supabase.rpc('my_requests');
+  if (error) throw error;
+  return (data || []).map(r => ({
+    id: r.id, rfqId: r.rfq_id, status: r.status || 'New', productName: r.product_name,
+    quantity: r.quantity, location: r.location, neededBy: r.needed_by, message: r.message,
+    createdAt: new Date(r.created_at).getTime(),
+    quotes: (r.quotes || []).map(q => ({
+      id: q.id, version: q.version, unitPrice: Number(q.unit_price), quantity: q.quantity,
+      gst: Number(q.gst_percent), validUntil: q.valid_until, notes: q.notes,
+      sentAt: new Date(q.sent_at).getTime(),
+    })),
+  }));
 }
