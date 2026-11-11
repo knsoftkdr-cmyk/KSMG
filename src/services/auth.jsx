@@ -27,6 +27,9 @@ export function AuthProvider({ children }) {
   const value = {
     ...state,
     signIn: (email, password) => supabase.auth.signInWithPassword({ email, password }),
+    signUp: (email, password, fullName) => supabase.auth.signUp({
+      email, password, options: { data: { full_name: fullName } },
+    }),
     signOut: () => supabase.auth.signOut(),
   };
   return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;
