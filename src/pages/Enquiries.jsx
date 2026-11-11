@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { listEnquiries, setEnquiryStatus, listEvents, addNote } from '../services/enquiries.js';
+import { listEnquiries, setEnquiryStatus, listEvents, addNote, listQuotes, addQuote } from '../services/enquiries.js';
 import usePageMeta from '../hooks/usePageMeta.js';
 
 const STATUSES = ['New', 'In review', 'Quoted', 'Closed'];
+const money = n => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function Notes({ enquiryId, events, onAdded, onError }) {
   const [text, setText] = useState('');
@@ -38,16 +39,71 @@ function Notes({ enquiryId, events, onAdded, onError }) {
   );
 }
 
+function Quotes({ enquiry, quotes, onAdded, onError }) {
+  const [f, setF] = useState({ price: '', qty: enquiry.quantity ? String(enquiry.quantity) : '', gst: '5', valid: '', note: '' });
+  const [busy, setBusy] = useState(false);
+  const set = k => e => setF({ ...f, [k]: e.target.value });
+  const today = new Date().toLocaleDateString('en-CA');
+
+  const add = async () => {
+    const price = Number(f.price), qty = Number(f.qty), gst = Number(f.gst);
+    if (!(price > 0)) return onError('Price per piece must be more than 0.');
+    if (!Number.isInteger(qty) || qty < 1) return onError('Quantity must be a whole number, 1 or more.');
+    if (f.gst === '' || !(gst >= 0 && gst <= 100)) return onError('GST must be between 0 and 100.');
+    if (f.valid && f.valid < today) return onError('Valid until cannot be in the past.');
+    if (f.note.length > 2000) return onError('Notes can have at most 2000 characters.');
+    setBusy(true);
+    try {
+      await addQuote(enquiry.id, { price, qty, gst, valid: f.valid, note: f.note.trim() });
+      setF({ ...f, price: '', valid: '', note: '' });
+      onError('');
+      await onAdded();
+    } catch { onError('Could not save the quote version.'); }
+    setBusy(false);
+  };
+
+  return (
+    <details className="rfq-events">
+      <summary>Quote versions ({quotes.length})</summary>
+      {quotes.length === 0 && <p>No quote created yet.</p>}
+      <ul>
+        {[...quotes].reverse().map(q => {
+          const sub = q.unitPrice * q.quantity;
+          const tax = sub * q.gst / 100;
+          return (
+            <li key={q.id}>
+              <strong>v{q.version}</strong>: {money(q.unitPrice)} x {q.quantity} = {money(sub)}
+              {' '}+ GST {q.gst}% ({money(tax)}) = <strong>{money(sub + tax)}</strong>
+              {q.validUntil && <> | Valid until {q.validUntil}</>}
+              {q.notes && <><br />{q.notes}</>}
+              <br /><small>{q.by || 'Unknown'} | {new Date(q.createdAt).toLocaleString()}</small>
+            </li>
+          );
+        })}
+      </ul>
+      <h3>New version (v{quotes.length + 1})</h3>
+      <label>Price per piece<input type="number" min="0" step="0.01" value={f.price} onChange={set('price')} /></label>
+      <label>Quantity<input type="number" min="1" step="1" value={f.qty} onChange={set('qty')} /></label>
+      <label>GST %<input type="number" min="0" max="100" step="0.01" value={f.gst} onChange={set('gst')} /></label>
+      <label>Valid until<input type="date" value={f.valid} min={today} onChange={set('valid')} /></label>
+      <label>Notes<textarea rows="2" value={f.note} onChange={set('note')} maxLength={2000} /></label>
+      <button type="button" className="btn gold" disabled={busy} onClick={add}>{busy ? 'Saving...' : 'Save quote version'}</button>
+    </details>
+  );
+}
+
 export default function Enquiries() {
   usePageMeta('Quote requests');
   const [list, setList] = useState(null);
   const [events, setEvents] = useState([]);
+  const [quotes, setQuotes] = useState([]);
   const [filter, setFilter] = useState('All');
   const [err, setErr] = useState('');
   const load = async () => {
     try {
       setList(await listEnquiries());
       setEvents(await listEvents());
+      setQuotes(await listQuotes());
     } catch { setErr('Could not load quote requests.'); setList(l => l || []); }
   };
   useEffect(() => { load(); }, []);
@@ -90,6 +146,7 @@ export default function Enquiries() {
                 {STATUSES.map(s => <option key={s}>{s}</option>)}
               </select>
             </div>
+            <Quotes enquiry={e} quotes={quotes.filter(x => x.enquiryId === e.id)} onAdded={load} onError={setErr} />
             <Notes enquiryId={e.id} events={events.filter(x => x.enquiryId === e.id)} onAdded={load} onError={setErr} />
           </div>
         );

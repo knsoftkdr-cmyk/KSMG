@@ -44,3 +44,21 @@ export async function addNote(enquiryId, text) {
   const { error } = await supabase.rpc('add_enquiry_note', { enquiry: enquiryId, note: text });
   if (error) throw error;
 }
+
+export async function listQuotes() {
+  const { data, error } = await supabase.from('quote_versions').select('*').order('version', { ascending: true });
+  if (error) throw error;
+  return data.map(r => ({
+    id: r.id, enquiryId: r.enquiry_id, version: r.version, unitPrice: Number(r.unit_price),
+    quantity: r.quantity, gst: Number(r.gst_percent), validUntil: r.valid_until, notes: r.notes,
+    by: r.author_email, createdAt: new Date(r.created_at).getTime(),
+  }));
+}
+
+export async function addQuote(enquiryId, q) {
+  const { data, error } = await supabase.rpc('add_quote_version', {
+    enquiry: enquiryId, price: q.price, qty: q.qty, gst: q.gst, valid: q.valid || null, note: q.note || '',
+  });
+  if (error) throw error;
+  return data;
+}
