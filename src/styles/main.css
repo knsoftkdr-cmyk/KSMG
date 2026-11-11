@@ -370,3 +370,15 @@ main:focus { outline: none; }
 .rfq-events ul { list-style: none; padding: 0; margin: 12px 0; }
 .rfq-events li { margin-bottom: 10px; }
 .rfq-events textarea { width: 100%; }
+
+
+.dash-filter { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin: 16px 0; }
+.dash-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 16px; }
+.dash-card h2 { font-size: 1.1rem; margin-top: 0; }
+.stat-num { font-size: 2rem; font-weight: 700; margin: 0; }
+.bars { list-style: none; padding: 0; margin: 0; }
+.bars li { display: grid; grid-template-columns: minmax(80px, 38%) 1fr 2.5rem; gap: 8px; align-items: center; margin-bottom: 8px; }
+.bar-track { background: rgba(128, 128, 128, 0.25); border-radius: 6px; height: 14px; overflow: hidden; }
+.bar-fill { display: block; height: 100%; background: #c9a24a; border-radius: 6px; }
+.bar-num { text-align: right; font-weight: 600; }

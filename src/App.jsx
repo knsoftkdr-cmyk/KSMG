@@ -14,6 +14,7 @@ import IndustryDetail from './pages/IndustryDetail.jsx';
 import DesignStudio from './pages/DesignStudio.jsx';
 import Login from './pages/Login.jsx';
 import Staff from './pages/Staff.jsx';
+import Dashboard from './pages/Dashboard.jsx';
 import RequireRole from './components/RequireRole.jsx';
 import { CONTENT } from './data/content.js';
 
@@ -37,6 +38,7 @@ export default function App() {
           <Route path="/admin/add-product" element={<RequireRole roles={['product_manager', 'super_admin']}><AddProduct /></RequireRole>} />
           <Route path="/admin/edit-product/:id" element={<RequireRole roles={['product_manager', 'super_admin']}><AddProduct /></RequireRole>} />
           <Route path="/admin/enquiries" element={<RequireRole roles={['sales', 'super_admin']}><Enquiries /></RequireRole>} />
+          <Route path="/admin/dashboard" element={<RequireRole roles={['sales', 'super_admin']}><Dashboard /></RequireRole>} />
           <Route path="/admin/staff" element={<RequireRole roles={['super_admin']}><Staff /></RequireRole>} />
           <Route path="/contact" element={<Info kind="contact" />} />
           <Route path="*" element={<Info kind="404" />} />
