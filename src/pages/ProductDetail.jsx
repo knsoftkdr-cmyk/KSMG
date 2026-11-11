@@ -4,10 +4,12 @@ import { get, getAll, remove } from '../services/db.js';
 import { industryName } from '../data/industries.js';
 import Photo from '../components/Photo.jsx';
 import usePageMeta from '../hooks/usePageMeta.js';
+import useProductSchema from '../hooks/useProductSchema.js';
 export default function ProductDetail() {
   const { id } = useParams(); const nav = useNavigate();
   const [p, setP] = useState(undefined); const [related, setRelated] = useState([]);
   usePageMeta(p?.name || 'Product', p?.description);
+  useProductSchema(p);
   useEffect(() => {
     get('products', id).then(x => { setP(x); if (x) getAll('products').then(all => setRelated(
       all.filter(r => r.id !== x.id && (r.industry === x.industry || (x.category && r.category === x.category))).slice(0, 4))); });
