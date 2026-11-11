@@ -25,7 +25,7 @@ export const newId = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.no
 
 // First run only: add clearly-labelled SAMPLE products so the catalogue is not empty.
 let seeding;
-export const seedOnce = () => seeding || (seeding = doSeed());
+export const seedOnce = () => seeding || (seeding = doSeed().then(doSeedMore));
 async function doSeed() {
   if (localStorage.getItem('ksmg-seeded')) return;
   const samples = [
@@ -38,4 +38,21 @@ async function doSeed() {
     await save('products', { id: newId(), sku, name, industry, fabric, gsm, colours: 'Navy, White', sizes: 'S, M, L, XL',
       moq: '', description: 'Sample entry. Replace with real product details.', photos: [], sample: true, createdAt: Date.now() });
   localStorage.setItem('ksmg-seeded', '1');
+}
+
+
+// Second batch of clearly-labelled SAMPLE products (runs once per browser).
+async function doSeedMore() {
+  if (localStorage.getItem('ksmg-seeded-2')) return;
+  const more = [
+    ['SAMPLE-SCH-002', 'School trousers (sample)', 'schools', 'Poly-viscose', 200],
+    ['SAMPLE-SCH-003', 'Girls pinafore (sample)', 'schools', 'Poly-cotton check', 180],
+    ['SAMPLE-HOS-002', 'Lab coat (sample)', 'healthcare', 'Cotton-polyester blend', 190],
+    ['SAMPLE-COR-002', 'Office blazer (sample)', 'corporate', 'Poly-viscose suiting', 260],
+    ['SAMPLE-HSP-002', 'Kitchen apron (sample)', 'hospitality', 'Cotton drill', 240],
+  ];
+  for (const [sku, name, industry, fabric, gsm] of more)
+    await save('products', { id: newId(), sku, name, industry, fabric, gsm, colours: 'Navy, White', sizes: 'S, M, L, XL',
+      moq: '', description: 'Sample entry. Replace with real product details.', photos: [], sample: true, createdAt: Date.now() });
+  localStorage.setItem('ksmg-seeded-2', '1');
 }
