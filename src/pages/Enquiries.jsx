@@ -96,6 +96,12 @@ function Quotes({ enquiry, quotes, onAdded, onError }) {
                       <> <button type="button" className="btn ghost" disabled={busy} onClick={() => send(q)}>Send to customer</button></>
                     )}
                   </>}
+              {q.response === 'accepted' && (
+                <><br /><strong>Customer accepted this quote</strong> | {new Date(q.respondedAt).toLocaleString()}</>
+              )}
+              {q.response === 'changes_requested' && (
+                <><br /><strong>Customer asked for changes:</strong> {q.responseNote} | {new Date(q.respondedAt).toLocaleString()}</>
+              )}
             </li>
           );
         })}
@@ -149,6 +155,10 @@ export default function Enquiries() {
       {shown.length === 0 && <p>No requests to show.</p>}
       {shown.map(e => {
         const status = e.status || 'New';
+        const mine = quotes.filter(x => x.enquiryId === e.id);
+        const accepted = mine.find(x => x.response === 'accepted');
+        const sentOnes = mine.filter(x => x.sentAt);
+        const latest = sentOnes.length ? sentOnes[sentOnes.length - 1] : null;
         return (
           <div key={e.id} className="card">
             <p className="rfq-id small">{e.rfqId}</p>
@@ -159,13 +169,17 @@ export default function Enquiries() {
             {e.location && <p>Delivery: {e.location}{e.neededBy && ` | Needed by ${e.neededBy}`}</p>}
             <p>{e.message}</p>
             <small>{new Date(e.createdAt).toLocaleString()}</small>
+            {accepted && <p className="quote-reply"><strong>Customer accepted quote v{accepted.version}.</strong></p>}
+            {!accepted && latest && latest.response === 'changes_requested' && (
+              <p className="quote-reply"><strong>Customer asked for changes on v{latest.version}.</strong> Create a new version and send it.</p>
+            )}
             <div className="rfq-actions">
               <span className={`status status-${status.replace(' ', '-').toLowerCase()}`}>{status}</span>
               <select value={status} onChange={ev => changeStatus(e, ev.target.value)} aria-label="Change status">
                 {STATUSES.map(s => <option key={s}>{s}</option>)}
               </select>
             </div>
-            <Quotes enquiry={e} quotes={quotes.filter(x => x.enquiryId === e.id)} onAdded={load} onError={setErr} />
+            <Quotes enquiry={e} quotes={mine} onAdded={load} onError={setErr} />
             <Notes enquiryId={e.id} events={events.filter(x => x.enquiryId === e.id)} onAdded={load} onError={setErr} />
           </div>
         );

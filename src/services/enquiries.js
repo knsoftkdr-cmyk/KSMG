@@ -54,6 +54,8 @@ export async function listQuotes() {
     quantity: r.quantity, gst: Number(r.gst_percent), validUntil: r.valid_until, notes: r.notes,
     by: r.author_email, createdAt: new Date(r.created_at).getTime(),
     sentAt: r.sent_at ? new Date(r.sent_at).getTime() : null,
+    response: r.response || null, responseNote: r.response_note || '',
+    respondedAt: r.responded_at ? new Date(r.responded_at).getTime() : null,
   }));
 }
 
@@ -70,6 +72,11 @@ export async function sendQuote(quoteId) {
   if (error) throw error;
 }
 
+export async function respondToQuote(quoteId, answer, note = '') {
+  const { error } = await supabase.rpc('respond_to_quote', { quote: quoteId, answer, note });
+  if (error) throw error;
+}
+
 export async function myRequests() {
   const { data, error } = await supabase.rpc('my_requests');
   if (error) throw error;
@@ -81,6 +88,8 @@ export async function myRequests() {
       id: q.id, version: q.version, unitPrice: Number(q.unit_price), quantity: q.quantity,
       gst: Number(q.gst_percent), validUntil: q.valid_until, notes: q.notes,
       sentAt: new Date(q.sent_at).getTime(),
+      response: q.response || null, responseNote: q.response_note || '',
+      respondedAt: q.responded_at ? new Date(q.responded_at).getTime() : null,
     })),
   }));
 }

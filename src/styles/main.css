@@ -386,3 +386,8 @@ main:focus { outline: none; }
 .my-quote { border-left: 3px solid #c9a24a; padding-left: 12px; margin: 12px 0; }
 .my-quote p { margin: 0 0 8px; }
 .card .rfq-actions + h3 { margin-top: 20px; }
+
+
+.quote-reply { margin: 10px 0; padding: 10px 12px; border-radius: 10px; background: rgba(201, 162, 74, 0.15); }
+.quote-reply textarea { width: 100%; }
+.card .rfq-actions + h3 { margin-top: 20px; }
