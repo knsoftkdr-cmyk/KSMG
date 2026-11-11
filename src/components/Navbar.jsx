@@ -40,6 +40,7 @@ export default function Navbar() {
         <NavLink to="/contact">Contact</NavLink>
         {['product_manager', 'super_admin'].includes(role) && <NavLink to="/admin/add-product">Add product</NavLink>}
         {['sales', 'super_admin'].includes(role) && <NavLink to="/admin/enquiries">Enquiries</NavLink>}
+        {role === 'super_admin' && <NavLink to="/admin/staff">Staff</NavLink>}
         <NavLink to="/login">{user ? 'Account' : 'Log in'}</NavLink>
         <Link to="/quote" className="btn gold">Request a quote</Link>
         <Settings />
