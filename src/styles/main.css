@@ -363,3 +363,10 @@ main:focus { outline: none; }
   .ds-grid > * { min-width: 0; }
   .ds-form select, .ds-form input { width: 100%; min-width: 0; }
 }
+
+
+.rfq-events { margin-top: 16px; border-top: 1px solid rgba(128, 128, 128, 0.35); padding-top: 12px; }
+.rfq-events summary { cursor: pointer; font-weight: 600; }
+.rfq-events ul { list-style: none; padding: 0; margin: 12px 0; }
+.rfq-events li { margin-bottom: 10px; }
+.rfq-events textarea { width: 100%; }

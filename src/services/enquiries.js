@@ -29,3 +29,18 @@ export async function setEnquiryStatus(id, status) {
   const { error } = await supabase.from('enquiries').update({ status }).eq('id', id);
   if (error) throw error;
 }
+
+export async function listEvents() {
+  const { data, error } = await supabase.from('enquiry_events').select('*').order('created_at', { ascending: true });
+  if (error) throw error;
+  return data.map(r => ({
+    id: r.id, enquiryId: r.enquiry_id, kind: r.kind, body: r.body,
+    oldStatus: r.old_status, newStatus: r.new_status, by: r.author_email,
+    createdAt: new Date(r.created_at).getTime(),
+  }));
+}
+
+export async function addNote(enquiryId, text) {
+  const { error } = await supabase.rpc('add_enquiry_note', { enquiry: enquiryId, note: text });
+  if (error) throw error;
+}

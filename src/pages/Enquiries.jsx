@@ -1,15 +1,55 @@
 import { useEffect, useState } from 'react';
-import { listEnquiries, setEnquiryStatus } from '../services/enquiries.js';
+import { listEnquiries, setEnquiryStatus, listEvents, addNote } from '../services/enquiries.js';
 import usePageMeta from '../hooks/usePageMeta.js';
 
 const STATUSES = ['New', 'In review', 'Quoted', 'Closed'];
 
+function Notes({ enquiryId, events, onAdded, onError }) {
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const add = async () => {
+    const t = text.trim();
+    if (!t) return onError('Write a note first.');
+    if (t.length > 2000) return onError('A note can have at most 2000 characters.');
+    setBusy(true);
+    try { await addNote(enquiryId, t); setText(''); onError(''); await onAdded(); }
+    catch { onError('Could not save the note.'); }
+    setBusy(false);
+  };
+  return (
+    <details className="rfq-events">
+      <summary>Notes and history ({events.length})</summary>
+      {events.length === 0 && <p>No notes or changes yet.</p>}
+      <ul>
+        {events.map(ev => (
+          <li key={ev.id}>
+            {ev.kind === 'note'
+              ? <><strong>Note:</strong> {ev.body}</>
+              : <><strong>Status:</strong> {ev.oldStatus || 'New'} to {ev.newStatus}</>}
+            <br /><small>{ev.by || 'Unknown'} | {new Date(ev.createdAt).toLocaleString()}</small>
+          </li>
+        ))}
+      </ul>
+      <label>Add a note
+        <textarea rows="2" value={text} onChange={e => setText(e.target.value)} maxLength={2000} />
+      </label>
+      <button type="button" className="btn ghost" disabled={busy} onClick={add}>{busy ? 'Saving...' : 'Save note'}</button>
+    </details>
+  );
+}
+
 export default function Enquiries() {
   usePageMeta('Quote requests');
   const [list, setList] = useState(null);
+  const [events, setEvents] = useState([]);
   const [filter, setFilter] = useState('All');
   const [err, setErr] = useState('');
-  const load = () => listEnquiries().then(setList).catch(() => { setErr('Could not load quote requests.'); setList([]); });
+  const load = async () => {
+    try {
+      setList(await listEnquiries());
+      setEvents(await listEvents());
+    } catch { setErr('Could not load quote requests.'); setList(l => l || []); }
+  };
   useEffect(() => { load(); }, []);
 
   const changeStatus = async (e, status) => {
@@ -50,6 +90,7 @@ export default function Enquiries() {
                 {STATUSES.map(s => <option key={s}>{s}</option>)}
               </select>
             </div>
+            <Notes enquiryId={e.id} events={events.filter(x => x.enquiryId === e.id)} onAdded={load} onError={setErr} />
           </div>
         );
       })}
