@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { INDUSTRIES } from '../data/industries.js';
 import usePageMeta from '../hooks/usePageMeta.js';
 
-const GARMENTS = ['Shirt', 'Trousers', 'Apron', 'Skirt', 'Pinafore', 'Blazer', 'Scrub top', 'Lab coat', 'Chef coat'];
+const GARMENTS = ['Shirt', 'Trousers', 'Apron', 'Skirt', 'Pinafore', 'Blazer', 'Scrub top', 'Lab coat', 'Chef coat', 'Salon wear', 'Coverall', 'Hi-vis jacket', 'Gown'];
 const FABRICS = ['Cotton', 'Poly-cotton blend', 'Polyester', 'To be advised by sales team'];
 const COLOURS = [
   ['Navy', '#0a1330'], ['White', '#ffffff'], ['Sky blue', '#7fb2e5'], ['Grey', '#8b8f98'],
@@ -27,6 +27,17 @@ const LOGO_POS = {
   Shirt: [118, 50], Trousers: [108, 28], Apron: [85, 80], Skirt: [105, 40], Pinafore: [84, 75],
   Blazer: [120, 60], 'Scrub top': [116, 52], 'Lab coat': [118, 60], 'Chef coat': [118, 52],
 };
+
+// More garments (simple conceptual outlines)
+Object.assign(SHAPES, {
+  'Salon wear': 'M62 18 L84 10 L100 34 L116 10 L138 18 L170 42 L156 68 L144 58 L156 168 L44 168 L56 58 L44 68 L30 42 Z',
+  Coverall: 'M62 14 L84 10 L100 24 L116 10 L138 14 L178 48 L162 78 L145 66 L146 112 L152 210 L108 210 L100 128 L92 210 L48 210 L54 112 L55 66 L38 78 L22 48 Z',
+  'Hi-vis jacket': 'M56 18 L84 10 L100 24 L116 10 L144 18 L172 40 L186 150 L162 156 L148 80 L148 196 L52 196 L52 80 L38 156 L14 150 L28 40 Z',
+  Gown: 'M64 14 L84 10 L100 26 L116 10 L136 14 L176 50 L160 82 L146 70 L162 210 L38 210 L54 70 L40 82 L24 50 Z',
+});
+Object.assign(LOGO_POS, {
+  'Salon wear': [114, 48], Coverall: [116, 48], 'Hi-vis jacket': [118, 56], Gown: [116, 50],
+});
 
 export default function DesignStudio() {
   usePageMeta('Custom Design Studio', 'Create a conceptual uniform design with your colours and logo, then request a technical review and quotation.');
