@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { getAll, save, remove } from '../services/db.js';
+import usePageMeta from '../hooks/usePageMeta.js';
 
 const STATUSES = ['New', 'In review', 'Quoted', 'Closed'];
 
 export default function Enquiries() {
+  usePageMeta('Quote requests');
   const [list, setList] = useState(null);
   const [filter, setFilter] = useState('All');
   const load = () => getAll('enquiries').then(r => setList(r.sort((a, b) => b.createdAt - a.createdAt)));

@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { get, save, newId } from '../services/db.js';
 import { INDUSTRIES } from '../data/industries.js';
+import usePageMeta from '../hooks/usePageMeta.js';
 const EMPTY = { name: '', sku: '', industry: 'schools', category: '', description: '', fabric: '', gsm: '', season: '', construction: '',
   fit: '', collar: '', cuff: '', pockets: '', colours: '', sizes: '', accessories: '', embroidery: false, print: false, logo: false,
   washcare: '', moq: '', leadTime: '', sampleAvailable: false, pricing: '', techSpecs: '', compliance: '' };
 export default function AddProduct() {
   const { id } = useParams(); const nav = useNavigate();
+  usePageMeta(id ? 'Edit product' : 'Add product');
   const [f, setF] = useState(EMPTY); const [old, setOld] = useState(null);
   const [files, setFiles] = useState([]); const [err, setErr] = useState('');
   useEffect(() => { if (id) get('products', id).then(p => { if (p) { setOld(p); setF({ ...EMPTY, ...p }); } }); }, [id]);
