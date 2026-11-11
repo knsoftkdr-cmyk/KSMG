@@ -352,3 +352,14 @@ main:focus { outline: none; }
 /* Accessibility fixes */
 .card h2 { margin: 0 0 8px; font-size: 1.15rem; }
 .card .rfq-id { color: #0a1330; }
+
+
+/* Phone fixes: scrollable mobile menu, Design Studio width */
+@media (max-width: 820px) {
+  .nav nav.open { max-height: calc(100vh - 80px); max-height: calc(100dvh - 80px); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+}
+@media (max-width: 899px) {
+  .ds-grid { grid-template-columns: minmax(0, 1fr); }
+  .ds-grid > * { min-width: 0; }
+  .ds-form select, .ds-form input { width: 100%; min-width: 0; }
+}

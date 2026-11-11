@@ -21,7 +21,7 @@ export const getAll = async s => { if (s === 'products') await seedOnce(); retur
 export const get = (s, id) => run(s, 'readonly', o => o.get(id));
 export const save = (s, item) => run(s, 'readwrite', o => o.put(item));
 export const remove = (s, id) => run(s, 'readwrite', o => o.delete(id));
-export const newId = () => crypto.randomUUID();
+export const newId = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
 
 // First run only: add clearly-labelled SAMPLE products so the catalogue is not empty.
 let seeding;
