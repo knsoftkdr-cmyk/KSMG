@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { INDUSTRIES } from '../data/industries.js';
+import usePageMeta from '../hooks/usePageMeta.js';
 export default function Industries() {
+  usePageMeta('Industries we serve', 'Uniforms for schools, healthcare, corporate, hospitality, industrial, government and more. Explore all 15 industries.');
   return (
     <section className="wrap">
       <h1>Industries</h1>

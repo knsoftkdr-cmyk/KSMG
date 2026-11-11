@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { getAll } from '../services/db.js';
 import Photo from '../components/Photo.jsx';
 import { INDUSTRIES } from '../data/industries.js';
+import usePageMeta from '../hooks/usePageMeta.js';
 const BIG = ['schools', 'healthcare'];
 const STEPS = [
   ['Send a request', 'Pick products, add sizes and quantities.'],
@@ -11,6 +12,7 @@ const STEPS = [
   ['We make and deliver', 'Production, quality check, dispatch.'],
 ];
 export default function Home() {
+  usePageMeta('Uniforms for every industry', 'School, hospital, corporate, hospitality and industrial uniforms. Browse the catalogue and request a bulk quotation from KSMG Global.');
   const [feat, setFeat] = useState([]);
   useEffect(() => { getAll('products').then(r => setFeat(r.sort((a, b) => b.createdAt - a.createdAt).slice(0, 4))); }, []);
   return (

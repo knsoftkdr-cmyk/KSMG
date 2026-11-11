@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { COMPANY as DETAILS } from '../data/company.js';
+import usePageMeta from '../hooks/usePageMeta.js';
 
 const TBC = 'Company to confirm: this detail has not been provided yet.';
 
@@ -15,6 +16,14 @@ function Row({ label, value, href }) {
 }
 
 export default function Info({ kind }) {
+
+  const META = {
+    about: ['About us', 'About Prasanna Reddy Garments, a brand of KSMG Global Private Limited.'],
+    contact: ['Contact us', 'Contact Prasanna Reddy Garments for uniform enquiries.'],
+    '404': ['Page not found', 'This page could not be found.'],
+  };
+  
+  usePageMeta(...(META[kind] || META.about));
   if (kind === '404') {
     return (
       <section className="wrap narrow">

@@ -3,7 +3,9 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { getAll } from '../services/db.js';
 import { INDUSTRIES, industryName, bdClass } from '../data/industries.js';
 import Photo from '../components/Photo.jsx';
+import usePageMeta from '../hooks/usePageMeta.js';
 export default function Products() {
+  usePageMeta('All uniform collections', 'Browse uniforms by industry. Search the catalogue and request a bulk quotation.');
   const [items, setItems] = useState(null);
   const [params, setParams] = useSearchParams();
   const industry = params.get('industry') || '';

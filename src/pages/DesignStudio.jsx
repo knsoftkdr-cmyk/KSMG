@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { INDUSTRIES } from '../data/industries.js';
+import usePageMeta from '../hooks/usePageMeta.js';
 
 const GARMENTS = ['Shirt', 'Trousers', 'Apron', 'Skirt', 'Pinafore', 'Blazer', 'Scrub top', 'Lab coat', 'Chef coat'];
 const FABRICS = ['Cotton', 'Poly-cotton blend', 'Polyester', 'To be advised by sales team'];
@@ -28,6 +29,7 @@ const LOGO_POS = {
 };
 
 export default function DesignStudio() {
+  usePageMeta('Custom Design Studio', 'Create a conceptual uniform design with your colours and logo, then request a technical review and quotation.');
   const [industry, setIndustry] = useState(INDUSTRIES[0].slug);
   const [garment, setGarment] = useState('Shirt');
   const [fabric, setFabric] = useState(FABRICS[0]);

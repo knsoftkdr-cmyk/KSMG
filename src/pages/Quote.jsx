@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { getAll, save, newId } from '../services/db.js';
 import { INDUSTRIES } from '../data/industries.js';
+import usePageMeta from '../hooks/usePageMeta.js';
 
 async function nextRfqId() {
   const all = await getAll('enquiries');
@@ -15,6 +16,7 @@ async function nextRfqId() {
 }
 
 export default function Quote() {
+  usePageMeta('Request a quote', 'Send your uniform requirements, sizes and quantities to get a quotation from Prasanna Reddy Garments.');
   const [params] = useSearchParams();
   const [products, setProducts] = useState([]);
   const [f, setF] = useState({
