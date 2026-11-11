@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, useLocation, Link } from 'react-router-dom';
 import { getAll } from '../services/db.js';
 import { submitEnquiry } from '../services/enquiries.js';
+import { useAuth } from '../services/auth.jsx';
 import { INDUSTRIES } from '../data/industries.js';
 import usePageMeta from '../hooks/usePageMeta.js';
 
 export default function Quote() {
   usePageMeta('Request a quote', 'Send your uniform requirements, sizes and quantities to get a quotation from Prasanna Reddy Garments.');
   const [params] = useSearchParams();
+  const location = useLocation();
+  const { user, loading } = useAuth();
   const [products, setProducts] = useState([]);
   const [f, setF] = useState({
     name: '', organisation: '', industry: '', email: '', phone: '',
@@ -18,6 +21,9 @@ export default function Quote() {
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   useEffect(() => { getAll('products').then(setProducts); }, []);
+  useEffect(() => {
+    if (user?.email) setF(old => (old.email ? old : { ...old, email: user.email }));
+  }, [user]);
   const set = k => e => setF({ ...f, [k]: e.target.value });
 
   const submit = async e => {
@@ -39,6 +45,23 @@ export default function Quote() {
     setBusy(false);
   };
 
+  if (loading) return <section className="wrap narrow"><p>Loading...</p></section>;
+
+  if (!user) {
+    const from = location.pathname + location.search;
+    return (
+      <section className="wrap narrow">
+        <h1>Log in to request a quote</h1>
+        <p>Please log in or create a free account first. Then you can track your request and see our quote on this website.</p>
+        <p className="row">
+          <Link to="/login" state={{ from }} className="btn gold">Log in</Link>
+          {' '}
+          <Link to="/login" state={{ from, signup: true }} className="btn ghost">Create an account</Link>
+        </p>
+      </section>
+    );
+  }
+
   if (rfqId) {
     return (
       <section className="wrap narrow">
@@ -46,6 +69,7 @@ export default function Quote() {
         <p>Your quote request is received. Your reference number is:</p>
         <p className="rfq-id">{rfqId}</p>
         <p className="rfq-note">Our sales team will review your request. Please keep this reference number.</p>
+        <p><Link to="/my-requests">Track this request in My requests</Link></p>
         <Link to="/products" className="btn ghost">Back to products</Link>
       </section>
     );

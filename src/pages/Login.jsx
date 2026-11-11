@@ -1,12 +1,14 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../services/auth.jsx';
 import usePageMeta from '../hooks/usePageMeta.js';
 
 export default function Login() {
   const { user, role, signIn, signUp, signOut } = useAuth();
   const nav = useNavigate();
-  const [mode, setMode] = useState('login');
+  const location = useLocation();
+  const from = location.state?.from || '';
+  const [mode, setMode] = useState(location.state?.signup ? 'signup' : 'login');
   usePageMeta(mode === 'login' ? 'Log in' : 'Create account');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -15,6 +17,10 @@ export default function Login() {
   const [err, setErr] = useState('');
   const [info, setInfo] = useState('');
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (user && from) nav(from, { replace: true });
+  }, [user, from, nav]);
 
   const switchMode = m => { setMode(m); setErr(''); setInfo(''); };
 
@@ -33,7 +39,7 @@ export default function Login() {
       const { error } = await signIn(mail, password);
       setBusy(false);
       if (error) return setErr('Wrong email or password.');
-      return nav('/');
+      return from ? undefined : nav('/');
     }
     const { data, error } = await signUp(mail, password, name.trim());
     setBusy(false);
@@ -41,7 +47,7 @@ export default function Login() {
     if (data.user && data.user.identities && data.user.identities.length === 0) {
       return setErr('This email may already have an account. Try logging in.');
     }
-    if (data.session) return nav('/');
+    if (data.session) return from ? undefined : nav('/');
     setInfo('Account created. Please check your email and click the link to confirm, then log in.');
     setPassword(''); setConfirm('');
   };
