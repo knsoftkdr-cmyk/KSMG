@@ -32,7 +32,7 @@ export default function Quote() {
     setBusy(true);
     try {
       const p = products.find(x => x.id === f.productId);
-      setRfqId(await submitEnquiry({ ...f, email }, p?.name || ''));
+      setRfqId(await submitEnquiry({ ...f, email }, p?.name || '', p?.id || ''));
     } catch {
       setErr('Could not send your request. Please try again.');
     }

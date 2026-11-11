@@ -7,11 +7,11 @@ const fromRow = r => ({
   createdAt: new Date(r.created_at).getTime(),
 });
 
-export async function submitEnquiry(f, productName) {
+export async function submitEnquiry(f, productName, productId = '') {
   const { data, error } = await supabase.rpc('submit_enquiry', {
     payload: {
       name: f.name, organisation: f.organisation, industry: f.industry, email: f.email, phone: f.phone,
-      product_name: productName, quantity: f.quantity, location: f.location,
+      product_id: productId, product_name: productName, quantity: f.quantity, location: f.location,
       needed_by: f.neededBy, message: f.message,
     },
   });
