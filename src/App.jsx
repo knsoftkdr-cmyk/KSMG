@@ -12,6 +12,8 @@ import Info from './pages/Info.jsx';
 import ContentPage from './pages/ContentPage.jsx';
 import IndustryDetail from './pages/IndustryDetail.jsx';
 import DesignStudio from './pages/DesignStudio.jsx';
+import Login from './pages/Login.jsx';
+import RequireRole from './components/RequireRole.jsx';
 import { CONTENT } from './data/content.js';
 
 // App only wires routes. Add a new page = new file in pages/ + one line here.
@@ -30,10 +32,10 @@ export default function App() {
           <Route path="/products/:id" element={<ProductDetail />} />
           <Route path="/quote" element={<Quote />} />
           <Route path="/design-studio" element={<DesignStudio />} />
-          <Route path="/admin/add-product" element={<AddProduct />} />
-          <Route path="/admin/edit-product/:id" element={<AddProduct />} />
-          <Route path="/admin/enquiries" element={<Enquiries />} />
-          <Route path="/about" element={<Info kind="about" />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/admin/add-product" element={<RequireRole roles={['product_manager', 'super_admin']}><AddProduct /></RequireRole>} />
+          <Route path="/admin/edit-product/:id" element={<RequireRole roles={['product_manager', 'super_admin']}><AddProduct /></RequireRole>} />
+          <Route path="/admin/enquiries" element={<RequireRole roles={['sales', 'super_admin']}><Enquiries /></RequireRole>} />
           <Route path="/contact" element={<Info kind="contact" />} />
           <Route path="*" element={<Info kind="404" />} />
         </Routes>

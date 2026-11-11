@@ -3,9 +3,11 @@ import { NavLink, Link } from 'react-router-dom';
 import Settings from './Settings.jsx';
 import { COMPANY } from '../data/company.js';
 import { INDUSTRIES } from '../data/industries.js';
+import { useAuth } from '../services/auth.jsx';
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
+  const { user, role } = useAuth();
   const [mega, setMega] = useState(false);
   const close = () => { setOpen(false); setMega(false); };
   return (
@@ -36,8 +38,9 @@ export default function Navbar() {
         <NavLink to="/design-studio">Design Studio</NavLink>
         <NavLink to="/about">About</NavLink>
         <NavLink to="/contact">Contact</NavLink>
-        <NavLink to="/admin/add-product">Add product</NavLink>
-        <NavLink to="/admin/enquiries">Enquiries</NavLink>
+        {['product_manager', 'super_admin'].includes(role) && <NavLink to="/admin/add-product">Add product</NavLink>}
+        {['sales', 'super_admin'].includes(role) && <NavLink to="/admin/enquiries">Enquiries</NavLink>}
+        <NavLink to="/login">{user ? 'Account' : 'Log in'}</NavLink>
         <Link to="/quote" className="btn gold">Request a quote</Link>
         <Settings />
       </nav>
