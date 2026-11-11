@@ -1,37 +1,49 @@
-# KSMG Global - Prasanna Reddy Garments website (Phase 1)
+# KSMG Global - Prasanna Reddy Garments website
 
-React + Vite, multi-page (React Router), no backend. Data (products, photos, quote requests)
-is stored in the visitor's browser using IndexedDB.
+React 18 + Vite, multi-page (React Router, clean URLs). No backend yet: data (products, photos,
+quote requests) is stored in the visitor's browser using IndexedDB.
 
 ## Folder structure
-- `src/pages` one file per page | `src/components` reusable parts (Navbar, Footer, Photo)
-- `src/services` storage/API code (`db.js`) | `src/data` static config (industries, company details)
-- `src/styles` CSS | `public` logo and static images | `App.jsx` routes only
+- `src/pages` one file per page | `src/components` reusable parts (Navbar, Footer, Photo, HomeSections, Settings)
+- `src/services` storage code (`db.js`) | `src/data` static content (industries, company details, info pages)
+- `src/hooks` page title, description, canonical URL and product structured data
+- `src/styles` CSS | `public` static files (robots.txt, sitemap.xml, _redirects)
 
 ## Run it on your computer
 1. Install Node.js (LTS) from https://nodejs.org
-2. Unzip this folder, open a terminal inside it
+2. Open a terminal in the project folder
 3. `npm install`
-4. `npm run dev` then open the link shown (usually http://localhost:5173)
+4. `npm run dev` then open http://localhost:5173
 
 ## What works
-- Pages: Home, Industries (15), Products (search + industry filter), Product detail, Add product (photo upload), Request a quote, Quote requests list, About, Contact
-- New products and their photos are saved and still there after refresh
-- Quote requests are saved and shown at "Enquiries"
+- Home, 15 industry pages with mega-menu, product catalogue (search, filter, add/edit/delete, multiple photos)
+- Request a Quote as RFQ (IDs like RFQ-2026-0001, status), Quote requests page
+- Custom Design Studio (9 garments, logo upload, conceptual preview only)
+- Info pages (Manufacturing, Fabrics, Quality, Export, Tenders, Blog, FAQ, legal drafts), About, Contact
+- Light/dark theme, mobile menu, skip-to-content link
+- SEO: unique page titles, canonical URLs, robots.txt, sitemap.xml, product structured data (JSON-LD)
 
-## Put it live
-`npm run build` creates a `dist` folder. Upload `dist` to Netlify, Vercel, GitHub Pages or any static host.
-(Links use `#/` so no server settings are needed.)
+## Before going live (to do)
+- Replace `https://www.example.com` with the real domain in `src/hooks/usePageMeta.js`,
+  `public/robots.txt` and `public/sitemap.xml`
+- Host setting: all paths must serve `index.html` (single-page app). `public/_redirects` is for Netlify;
+  Vercel needs a `vercel.json` rewrite
+- Fill real company details in `src/data/company.js` and `src/data/content.js`
+- Privacy and Terms are drafts and need legal review
 
-## IMPORTANT limitation
-Because there is no backend, data lives only in each visitor's own browser. The person who
-adds a product sees it; other visitors and other devices do NOT. Quote requests also stay in the
-browser that sent them. This is fine for the basic first version, but the next step is a shared backend
-(for example Supabase or Node + PostgreSQL). All storage code is in `src/services/db.js`, so only that file
-needs to change. Add-product and Enquiries pages also have no login yet.
+## Build
+`npm run build` creates the `dist` folder. `npm run preview` serves it locally.
 
-## Next steps (suggested)
-1. Replace sample text on About/Contact and the Sample products with real company data
-2. Add a real logo and photos
-3. Shared database + admin login
-4. Product CMS, institution accounts, RFQ workflow (Phase 2)
+## Known limitations
+- Data lives only in each visitor's own browser. Other visitors and devices do not see products or
+  quote requests, so quote requests do not reach any sales team yet.
+- No login or roles. Add product and Quote requests pages are open to everyone.
+- Design Studio is conceptual only (simple shapes, not manufacturing patterns). Designs are not saved.
+- Product structured data only works for real data once products are stored on a server.
+- Automated accessibility checks (Lighthouse) pass on the main pages; manual and screen reader testing
+  is not done. No automated tests yet.
+
+## Next steps
+1. Shared backend (Supabase): database, login, roles, photo storage
+2. RFQ workflow for the sales team, institution accounts and portals
+3. Remaining phases from the master document (operations, export, tenders, analytics)
