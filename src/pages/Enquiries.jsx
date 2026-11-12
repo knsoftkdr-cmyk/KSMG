@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import usePageMeta from '../hooks/usePageMeta.js';
 import { listEnquiries, setEnquiryStatus, listEvents, addNote, listQuotes, addQuote, sendQuote, listSamples, sendSample, listDispatches, addDispatch } from '../services/enquiries.js';
 import PoDownloads from '../components/PoDownloads.jsx';
+import InvoiceUpload from '../components/InvoiceUpload.jsx';
 
 const STATUSES = ['New', 'In review', 'Quoted', 'Accepted', 'Sample sent', 'Sample changes', 'Sample approved', 'PO received', 'In production', 'Quality check', 'Dispatched', 'Delivered', 'Closed'];
 const money = n => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -230,6 +231,7 @@ export default function Enquiries() {
   const [samples, setSamples] = useState([]);
   const [dispatches, setDispatches] = useState([]);
   const [filter, setFilter] = useState('All');
+  const [page, setPage] = useState(1);
   const [err, setErr] = useState('');
   const load = async () => {
     try {
@@ -249,14 +251,18 @@ export default function Enquiries() {
   };
 
   if (!list) return <section className="wrap">Loading...</section>;
-  const shown = filter === 'All' ? list : list.filter(e => (e.status || 'New') === filter);
+  const filtered = filter === 'All' ? list : list.filter(e => (e.status || 'New') === filter);
+  const PAGE_SIZE = 10;
+  const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const cur = Math.min(page, pages);
+  const shown = filtered.slice((cur - 1) * PAGE_SIZE, cur * PAGE_SIZE);
 
   return (
     <section className="wrap">
       <h1>Quote requests</h1>
       {err && <p className="err" role="alert">{err}</p>}
       <label className="rfq-filter">Show
-        <select value={filter} onChange={e => setFilter(e.target.value)}>
+        <select value={filter} onChange={e => { setFilter(e.target.value); setPage(1); }}>
           <option>All</option>
           {STATUSES.map(s => <option key={s}>{s}</option>)}
         </select>
@@ -291,11 +297,21 @@ export default function Enquiries() {
             <Quotes enquiry={e} quotes={mine} onAdded={load} onError={setErr} />
             <Samples enquiry={e} quotes={mine} samples={samples.filter(x => x.enquiryId === e.id)} onAdded={load} onError={setErr} />
             <PoDownloads enquiryId={e.id} />
+            {e.userId && ['PO received', 'In production', 'Quality check', 'Dispatched', 'Delivered', 'Closed'].includes(status) && (
+              <InvoiceUpload enquiryId={e.id} customerId={e.userId} />
+            )}
             <Dispatches enquiry={e} items={dispatches.filter(x => x.enquiryId === e.id)} onAdded={load} onError={setErr} />
             <Notes enquiryId={e.id} events={events.filter(x => x.enquiryId === e.id)} onAdded={load} onError={setErr} />
           </div>
         );
       })}
+            {pages > 1 && (
+        <div className="rfq-actions">
+          <button type="button" className="btn ghost" disabled={cur <= 1} onClick={() => setPage(cur - 1)}>Previous</button>
+          <span>Page {cur} of {pages}</span>
+          <button type="button" className="btn ghost" disabled={cur >= pages} onClick={() => setPage(cur + 1)}>Next</button>
+        </div>
+      )}
     </section>
   );
 }

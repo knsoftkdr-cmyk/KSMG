@@ -177,3 +177,42 @@ export async function myDispatches() {
     note: r.note || '', sentAt: new Date(r.sent_at).getTime(),
   }));
 }
+
+export async function listInvoicesFor(enquiryId) {
+  const { data, error } = await supabase.from('invoices')
+    .select('id, invoice_number, file_name, file_path, created_at')
+    .eq('enquiry_id', enquiryId).order('created_at', { ascending: false });
+  if (error) throw error;
+  return data.map(r => ({
+    id: r.id, invoiceNumber: r.invoice_number, fileName: r.file_name, filePath: r.file_path,
+    createdAt: new Date(r.created_at).getTime(),
+  }));
+}
+
+export async function uploadInvoice(enquiryId, customerId, file, invoiceNo) {
+  const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-80);
+  const path = `${customerId}/${enquiryId}/${Date.now()}-${safe}`;
+  const { error: upErr } = await supabase.storage.from('invoices')
+    .upload(path, file, { contentType: 'application/pdf', upsert: false });
+  if (upErr) { console.error(upErr); throw new Error('Could not upload the file. Please try again.'); }
+  const { error } = await supabase.rpc('add_invoice', {
+    p_enquiry: enquiryId, p_path: path, p_fname: file.name.slice(0, 200), p_no: invoiceNo,
+  });
+  if (error) throw error;
+}
+
+export async function myInvoices() {
+  const { data, error } = await supabase.rpc('my_invoices');
+  if (error) throw error;
+  return (data || []).map(r => ({
+    id: r.id, enquiryId: r.enquiry_id, invoiceNumber: r.invoice_number,
+    fileName: r.file_name, filePath: r.file_path, createdAt: new Date(r.created_at).getTime(),
+  }));
+}
+
+export async function invoiceSignedUrl(path, downloadName) {
+  const { data, error } = await supabase.storage.from('invoices')
+    .createSignedUrl(path, 60, downloadName ? { download: downloadName } : undefined);
+  if (error) throw error;
+  return data.signedUrl;
+}

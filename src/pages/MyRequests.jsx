@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { myRequests, respondToQuote, respondToSample, myDispatches } from '../services/enquiries.js';
 import { useAuth } from '../services/auth.jsx';
 import PoUpload from '../components/PoUpload.jsx';
+import InvoiceDownloads from '../components/InvoiceDownloads.jsx';
 import usePageMeta from '../hooks/usePageMeta.js';
 
 const money = n => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -246,6 +247,7 @@ export default function MyRequests() {
               <p className="note">Please approve the sample before uploading a purchase order.</p>
             )}
             {locked && !closed && !waitingSample && <PoUpload enquiryId={r.id} />}
+                        <InvoiceDownloads enquiryId={r.id} />
           </div>
         );
       })}
