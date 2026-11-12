@@ -151,3 +151,29 @@ export async function respondToSample(sampleId, answer, note = '') {
   const { error } = await supabase.rpc('respond_to_sample', { sample: sampleId, answer, note });
   if (error) throw error;
 }
+
+
+export async function listDispatches() {
+  const { data, error } = await supabase.from('dispatches').select('*').order('sent_at', { ascending: true });
+  if (error) throw error;
+  return data.map(r => ({
+    id: r.id, enquiryId: r.enquiry_id, courier: r.courier, trackingNo: r.tracking_no || '',
+    note: r.note || '', sentAt: new Date(r.sent_at).getTime(),
+  }));
+}
+
+export async function addDispatch(enquiryId, courier, trackingNo = '', note = '') {
+  const { error } = await supabase.rpc('add_dispatch', {
+    p_enquiry: enquiryId, p_courier: courier, p_tracking: trackingNo, p_note: note,
+  });
+  if (error) throw error;
+}
+
+export async function myDispatches() {
+  const { data, error } = await supabase.rpc('my_dispatches');
+  if (error) throw error;
+  return (data || []).map(r => ({
+    id: r.id, enquiryId: r.enquiry_id, courier: r.courier, trackingNo: r.tracking_no || '',
+    note: r.note || '', sentAt: new Date(r.sent_at).getTime(),
+  }));
+}

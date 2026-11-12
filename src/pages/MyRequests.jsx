@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { myRequests, respondToQuote, respondToSample } from '../services/enquiries.js';
+import { myRequests, respondToQuote, respondToSample, myDispatches } from '../services/enquiries.js';
 import { useAuth } from '../services/auth.jsx';
 import PoUpload from '../components/PoUpload.jsx';
 import usePageMeta from '../hooks/usePageMeta.js';
@@ -156,14 +156,31 @@ function SampleBox({ s, isLatest, closed, onDone, onError }) {
   );
 }
 
+const STEPS = ['Quoted', 'Accepted', 'PO received', 'In production', 'Quality check', 'Dispatched', 'Delivered'];
+const STAGE = { Quoted: 0, Accepted: 1, 'Sample sent': 1, 'Sample changes': 1, 'Sample approved': 1, 'PO received': 2, 'In production': 3, 'Quality check': 4, Dispatched: 5, Delivered: 6 };
+
+function Progress({ status }) {
+  const at = STAGE[status];
+  if (at === undefined) return null;
+  return (
+    <ol className="rfq-progress" aria-label="Order progress">
+      {STEPS.map((s, i) => <li key={s} className={i < at ? 'done' : i === at ? 'current' : ''}>{s}</li>)}
+    </ol>
+  );
+}
+
 export default function MyRequests() {
   usePageMeta('My requests');
   const { user, loading } = useAuth();
   const [list, setList] = useState(null);
   const [err, setErr] = useState('');
+  const [dispatches, setDispatches] = useState([]);
   const uid = user?.id;
 
-  const load = () => myRequests().then(setList).catch(() => { setErr('Could not load your requests.'); setList(l => l || []); });
+  const load = () => {
+    myDispatches().then(setDispatches).catch(() => setDispatches([]));
+    return myRequests().then(setList).catch(() => { setErr('Could not load your requests.'); setList(l => l || []); });
+  };
   useEffect(() => { if (uid) load(); }, [uid]);
 
   if (loading) return <section className="wrap narrow"><p>Loading...</p></section>;
@@ -199,11 +216,19 @@ export default function MyRequests() {
             <p className="rfq-id small">{r.rfqId}</p>
             <h2>{r.productName || 'No product chosen'}{r.quantity && ` | Qty ${r.quantity}`}</h2>
             {r.location && <p>Delivery: {r.location}{r.neededBy && ` | Needed by ${r.neededBy}`}</p>}
-            {r.message && <p>{r.message}</p>}
+            {r.message && <p style={{ whiteSpace: 'pre-line' }}>{r.message}</p>}
             <small>Sent on {new Date(r.createdAt).toLocaleString()}</small>
             <div className="rfq-actions">
               <span className={`status status-${r.status.replace(' ', '-').toLowerCase()}`}>{r.status}</span>
             </div>
+            <Progress status={r.status} />
+            {dispatches.filter(d => d.enquiryId === r.id).map(d => (
+              <div key={d.id} className="my-quote">
+                <p><strong>Dispatched with {d.courier}</strong>{d.trackingNo && <><br />Tracking number: {d.trackingNo}</>}</p>
+                {d.note && <p>{d.note}</p>}
+                <small>On {new Date(d.sentAt).toLocaleString()}</small>
+              </div>
+            ))}
             <h3>Quotes</h3>
             {r.quotes.length === 0 && (
               <p className="note">

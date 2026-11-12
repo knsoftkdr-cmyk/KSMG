@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import usePageMeta from '../hooks/usePageMeta.js';
-import { listEnquiries, setEnquiryStatus, listEvents, addNote, listQuotes, addQuote, sendQuote, listSamples, sendSample } from '../services/enquiries.js';
+import { listEnquiries, setEnquiryStatus, listEvents, addNote, listQuotes, addQuote, sendQuote, listSamples, sendSample, listDispatches, addDispatch } from '../services/enquiries.js';
 import PoDownloads from '../components/PoDownloads.jsx';
 
-const STATUSES = ['New', 'In review', 'Quoted', 'Accepted', 'Sample sent', 'Sample changes', 'Sample approved', 'PO received', 'Closed'];
+const STATUSES = ['New', 'In review', 'Quoted', 'Accepted', 'Sample sent', 'Sample changes', 'Sample approved', 'PO received', 'In production', 'Quality check', 'Dispatched', 'Delivered', 'Closed'];
 const money = n => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function Notes({ enquiryId, events, onAdded, onError }) {
@@ -176,12 +176,59 @@ function Samples({ enquiry, quotes, samples, onAdded, onError }) {
   );
 }
 
+function Dispatches({ enquiry, items, onAdded, onError }) {
+  const [f, setF] = useState({ courier: '', tracking: '', note: '' });
+  const [busy, setBusy] = useState(false);
+  const status = enquiry.status || 'New';
+  const show = ['PO received', 'In production', 'Quality check', 'Dispatched', 'Delivered'].includes(status);
+  if (!show && items.length === 0) return null;
+  const set = k => e => setF({ ...f, [k]: e.target.value });
+
+  const add = async () => {
+    const courier = f.courier.trim();
+    if (courier.length < 2) return onError('Enter the courier or transport name.');
+    if (f.tracking.length > 80) return onError('Tracking number can have at most 80 characters.');
+    if (f.note.length > 2000) return onError('Notes can have at most 2000 characters.');
+    if (!window.confirm('Save dispatch details? The customer will see them and the status will change to Dispatched.')) return;
+    setBusy(true);
+    try {
+      await addDispatch(enquiry.id, courier, f.tracking.trim(), f.note.trim());
+      if (!['Dispatched', 'Delivered'].includes(status)) await setEnquiryStatus(enquiry.id, 'Dispatched');
+      setF({ courier: '', tracking: '', note: '' });
+      onError('');
+      await onAdded();
+    } catch (e) { onError(e?.message || 'Could not save the dispatch details.'); }
+    setBusy(false);
+  };
+
+  return (
+    <details className="rfq-events">
+      <summary>Dispatch ({items.length})</summary>
+      {items.length === 0 && <p>No dispatch recorded yet.</p>}
+      <ul>
+        {[...items].reverse().map(d => (
+          <li key={d.id}>
+            <strong>{d.courier}</strong>{d.trackingNo && <> | Tracking: {d.trackingNo}</>}
+            {d.note && <><br />{d.note}</>}
+            <br /><small>{new Date(d.sentAt).toLocaleString()}</small>
+          </li>
+        ))}
+      </ul>
+      <label>Courier / transport name<input value={f.courier} onChange={set('courier')} maxLength={80} /></label>
+      <label>Tracking number (optional)<input value={f.tracking} onChange={set('tracking')} maxLength={80} /></label>
+      <label>Notes for the customer (optional)<textarea rows="2" value={f.note} onChange={set('note')} maxLength={2000} /></label>
+      <button type="button" className="btn gold" disabled={busy} onClick={add}>{busy ? 'Saving...' : 'Save dispatch'}</button>
+    </details>
+  );
+}
+
 export default function Enquiries() {
   usePageMeta('Quote requests');
   const [list, setList] = useState(null);
   const [events, setEvents] = useState([]);
   const [quotes, setQuotes] = useState([]);
   const [samples, setSamples] = useState([]);
+  const [dispatches, setDispatches] = useState([]);
   const [filter, setFilter] = useState('All');
   const [err, setErr] = useState('');
   const load = async () => {
@@ -190,6 +237,7 @@ export default function Enquiries() {
       setEvents(await listEvents());
       setQuotes(await listQuotes());
       setSamples(await listSamples());
+      try { setDispatches(await listDispatches()); } catch { setDispatches([]); }
     } catch { setErr('Could not load quote requests.'); setList(l => l || []); }
   };
   useEffect(() => { load(); }, []);
@@ -228,7 +276,7 @@ export default function Enquiries() {
             <p>{e.email} {e.phone && `| ${e.phone}`}</p>
             <p>{e.productName || 'No product chosen'}{e.quantity && ` | Qty ${e.quantity}`}</p>
             {e.location && <p>Delivery: {e.location}{e.neededBy && ` | Needed by ${e.neededBy}`}</p>}
-            <p>{e.message}</p>
+            <p style={{ whiteSpace: 'pre-line' }}>{e.message}</p>
             <small>{new Date(e.createdAt).toLocaleString()}</small>
             {accepted && <p className="quote-reply"><strong>Customer accepted quote v{accepted.version}.</strong></p>}
             {!accepted && latest && latest.response === 'changes_requested' && (
@@ -243,6 +291,7 @@ export default function Enquiries() {
             <Quotes enquiry={e} quotes={mine} onAdded={load} onError={setErr} />
             <Samples enquiry={e} quotes={mine} samples={samples.filter(x => x.enquiryId === e.id)} onAdded={load} onError={setErr} />
             <PoDownloads enquiryId={e.id} />
+            <Dispatches enquiry={e} items={dispatches.filter(x => x.enquiryId === e.id)} onAdded={load} onError={setErr} />
             <Notes enquiryId={e.id} events={events.filter(x => x.enquiryId === e.id)} onAdded={load} onError={setErr} />
           </div>
         );

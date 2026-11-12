@@ -429,3 +429,15 @@ main:focus { outline: none; }
 
 .sw-pick { position: relative; width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--gold); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--navy); }
 .sw-pick input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .nav nav > a:not(.btn), .nav .mega > a { transition: color 0.25s ease; }
+  .nav nav > a:not(.btn):hover, .nav .mega > a:hover { color: var(--gold); }
+  .btn { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25); }
+}
+
+.rfq-progress { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; padding: 0; margin: 12px 0; }
+.rfq-progress li { font-size: 0.8rem; padding: 4px 10px; border: 1px solid rgba(0, 0, 0, 0.2); border-radius: 999px; opacity: 0.55; }
+.rfq-progress li.done { opacity: 1; background: var(--navy); color: #fff; }
+.rfq-progress li.current { opacity: 1; background: var(--gold); border-color: var(--gold); color: var(--navy); font-weight: 600; }
