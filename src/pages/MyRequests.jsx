@@ -4,6 +4,8 @@ import { myRequests, respondToQuote, respondToSample, myDispatches, confirmDeliv
 import { useAuth } from '../services/auth.jsx';
 import PoUpload from '../components/PoUpload.jsx';
 import InvoiceDownloads from '../components/InvoiceDownloads.jsx';
+import FeedbackBox from '../components/FeedbackBox.jsx';
+            
 import usePageMeta from '../hooks/usePageMeta.js';
 
 const money = n => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -261,6 +263,7 @@ export default function MyRequests() {
             )}
             {locked && !closed && !waitingSample && <PoUpload enquiryId={r.id} />}
                         <InvoiceDownloads enquiryId={r.id} />
+                                    {r.status === 'Delivered' && <FeedbackBox enquiryId={r.id} />}
           </div>
         );
       })}

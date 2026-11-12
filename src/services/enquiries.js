@@ -222,3 +222,28 @@ export async function confirmDelivery(enquiryId) {
   const { error } = await supabase.rpc('confirm_delivery', { p_enquiry: enquiryId });
   if (error) throw error;
 }
+
+export async function submitFeedback(enquiryId, rating, comment = '') {
+  const { error } = await supabase.rpc('submit_feedback', {
+    p_enquiry: enquiryId, p_rating: rating, p_comment: comment,
+  });
+  if (error) throw error;
+}
+
+export async function myFeedback() {
+  const { data, error } = await supabase.rpc('my_feedback');
+  if (error) throw error;
+  return (data || []).map(r => ({
+    enquiryId: r.enquiry_id, rating: r.rating, comment: r.comment || '',
+    createdAt: new Date(r.created_at).getTime(),
+  }));
+}
+
+export async function listFeedback() {
+  const { data, error } = await supabase.from('feedback').select('*');
+  if (error) throw error;
+  return data.map(r => ({
+    enquiryId: r.enquiry_id, rating: r.rating, comment: r.comment || '',
+    createdAt: new Date(r.created_at).getTime(),
+  }));
+}

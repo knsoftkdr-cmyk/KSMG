@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import usePageMeta from '../hooks/usePageMeta.js';
 import { listEnquiries, setEnquiryStatus, listEvents, addNote, listQuotes, addQuote, sendQuote, listSamples, sendSample, listDispatches, addDispatch } from '../services/enquiries.js';
 import PoDownloads from '../components/PoDownloads.jsx';
+import { listFeedback } from '../services/enquiries.js';
 import InvoiceUpload from '../components/InvoiceUpload.jsx';
 
 const STATUSES = ['New', 'In review', 'Quoted', 'Accepted', 'Sample sent', 'Sample changes', 'Sample approved', 'PO received', 'In production', 'Quality check', 'Dispatched', 'Delivered', 'Closed'];
@@ -230,6 +231,7 @@ export default function Enquiries() {
   const [quotes, setQuotes] = useState([]);
   const [samples, setSamples] = useState([]);
   const [dispatches, setDispatches] = useState([]);
+  const [feedback, setFeedback] = useState([]);
   const [filter, setFilter] = useState('All');
   const [page, setPage] = useState(1);
   const [err, setErr] = useState('');
@@ -240,6 +242,7 @@ export default function Enquiries() {
       setQuotes(await listQuotes());
       setSamples(await listSamples());
       try { setDispatches(await listDispatches()); } catch { setDispatches([]); }
+            try { setFeedback(await listFeedback()); } catch { setFeedback([]); }
     } catch { setErr('Could not load quote requests.'); setList(l => l || []); }
   };
   useEffect(() => { load(); }, []);
@@ -301,6 +304,9 @@ export default function Enquiries() {
               <InvoiceUpload enquiryId={e.id} customerId={e.userId} />
             )}
             <Dispatches enquiry={e} items={dispatches.filter(x => x.enquiryId === e.id)} onAdded={load} onError={setErr} />
+              {feedback.filter(f => f.enquiryId === e.id).map(f => (
+              <p key={f.createdAt} className="quote-reply"><strong>Customer feedback: {f.rating} / 5</strong>{f.comment && <> | {f.comment}</>}</p>
+            ))}
             <Notes enquiryId={e.id} events={events.filter(x => x.enquiryId === e.id)} onAdded={load} onError={setErr} />
           </div>
         );
