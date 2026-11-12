@@ -1,7 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { INDUSTRIES } from '../data/industries.js';
 import usePageMeta from '../hooks/usePageMeta.js';
+import { useAuth } from '../services/auth.jsx';
+import { listDesigns, saveDesign, deleteDesign } from '../services/designs.js';
 
 const GARMENTS = ['Shirt', 'Trousers', 'Apron', 'Skirt', 'Pinafore', 'Blazer', 'Scrub top', 'Lab coat', 'Chef coat', 'Salon wear', 'Coverall', 'Hi-vis jacket', 'Gown'];
 const FABRICS = ['Cotton', 'Poly-cotton blend', 'Polyester', 'To be advised by sales team'];
@@ -49,6 +51,43 @@ export default function DesignStudio() {
   const [logoUrl, setLogoUrl] = useState('');
   const [logoOk, setLogoOk] = useState(false);
   const [qty, setQty] = useState({ S: 0, M: 0, L: 0, XL: 0, '2XL': 0 });
+  const { user } = useAuth();
+  const [designs, setDesigns] = useState([]);
+  const [dname, setDname] = useState('');
+  const [msg, setMsg] = useState('');
+  const [saving, setSaving] = useState(false);
+  const uid = user?.id;
+
+  const loadDesigns = () => listDesigns().then(setDesigns).catch(() => setMsg('Could not load your saved designs.'));
+  useEffect(() => { if (uid) loadDesigns(); else setDesigns([]); }, [uid]);
+
+  const save = async () => {
+    const name = dname.trim();
+    if (!name) return setMsg('Give your design a name first.');
+    if (name.length > 80) return setMsg('Name can have at most 80 characters.');
+    setSaving(true);
+    try {
+      await saveDesign({ name, industry, garment, fabric, colour, decoration, sizes: qty });
+      setDname(''); setMsg('Design saved.');
+      await loadDesigns();
+    } catch (e) {
+      setMsg(/row-level|policy/i.test(e?.message || '') ? 'You can save at most 20 designs. Delete one first.' : 'Could not save the design.');
+    }
+    setSaving(false);
+  };
+
+  const openDesign = d => {
+    setIndustry(d.industry); setGarment(GARMENTS.includes(d.garment) ? d.garment : 'Shirt');
+    setFabric(d.fabric); setColour(d.colour); setDecoration(d.decoration);
+    setQty({ S: 0, M: 0, L: 0, XL: 0, '2XL': 0, ...d.sizes });
+    setMsg(`Opened "${d.name}".`);
+  };
+
+  const removeDesign = async d => {
+    if (!window.confirm(`Delete "${d.name}"?`)) return;
+    try { await deleteDesign(d.id); setMsg('Design deleted.'); await loadDesigns(); }
+    catch { setMsg('Could not delete the design.'); }
+  };
 
   const total = useMemo(() => Object.values(qty).reduce((a, b) => a + (Number(b) || 0), 0), [qty]);
   const colourName = (COLOURS.find(c => c[1] === colour) || ['Custom'])[0];
@@ -139,7 +178,33 @@ export default function DesignStudio() {
             <li>Total quantity: {total}</li>
           </ul>
           <Link to="/quote" className="btn gold">Request review and quotation</Link>
-          <p className="ds-note small">Saving designs needs a login. It will be added with the backend. Please copy these details into the quote request for now.</p>
+                    {user ? (
+            <div className="ds-save">
+              <label>Design name
+                <input type="text" value={dname} maxLength={80} onChange={e => setDname(e.target.value)} placeholder="e.g. School shirt, blue" />
+              </label>
+              <button type="button" className="btn ghost" disabled={saving} onClick={save}>{saving ? 'Saving...' : 'Save design'}</button>
+              {msg && <p className="ds-note small" role="status">{msg}</p>}
+              {designs.length > 0 && (
+                <>
+                  <h3>My saved designs ({designs.length})</h3>
+                  <ul className="ds-list">
+                    {designs.map(d => (
+                      <li key={d.id}>
+                        <span><strong>{d.name}</strong><br /><small>{d.garment} | {d.industry}</small></span>
+                        <span className="rfq-actions">
+                          <button type="button" className="btn ghost" onClick={() => openDesign(d)}>Open</button>
+                          <button type="button" className="btn ghost" onClick={() => removeDesign(d)}>Delete</button>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
+          ) : (
+            <p className="ds-note small"><Link to="/login">Log in</Link> to save your designs and open them later.</p>
+          )}
         </div>
       </div>
     </section>
