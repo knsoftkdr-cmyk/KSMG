@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { listEnquiries, setEnquiryStatus, listEvents, addNote, listQuotes, addQuote, sendQuote } from '../services/enquiries.js';
 import usePageMeta from '../hooks/usePageMeta.js';
+import { listEnquiries, setEnquiryStatus, listEvents, addNote, listQuotes, addQuote, sendQuote, listSamples, sendSample } from '../services/enquiries.js';
 import PoDownloads from '../components/PoDownloads.jsx';
 
-const STATUSES = ['New', 'In review', 'Quoted', 'Accepted', 'PO received', 'Closed'];
+const STATUSES = ['New', 'In review', 'Quoted', 'Accepted', 'Sample sent', 'Sample changes', 'Sample approved', 'PO received', 'Closed'];
 const money = n => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function Notes({ enquiryId, events, onAdded, onError }) {
@@ -125,11 +125,63 @@ function Quotes({ enquiry, quotes, onAdded, onError }) {
   );
 }
 
+function Samples({ enquiry, quotes, samples, onAdded, onError }) {
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const accepted = quotes.some(q => q.response === 'accepted');
+  const approved = samples.some(s => s.response === 'approved');
+  const waiting = samples.some(s => !s.response);
+  const closed = enquiry.status === 'Closed';
+  if (!accepted && samples.length === 0) return null;
+
+  const send = async () => {
+    if (note.length > 2000) return onError('Notes can have at most 2000 characters.');
+    if (!window.confirm('Mark the sample as sent? The customer will see it and can approve it.')) return;
+    setBusy(true);
+    try { await sendSample(enquiry.id, note.trim()); setNote(''); onError(''); await onAdded(); }
+    catch (e) { onError(e?.message || 'Could not save the sample.'); }
+    setBusy(false);
+  };
+
+  return (
+    <details className="rfq-events">
+      <summary>Sample ({samples.length})</summary>
+      {samples.length === 0 && <p>No sample sent yet. If a sample is not needed, the customer can upload the purchase order directly.</p>}
+      <ul>
+        {[...samples].reverse().map(s => (
+          <li key={s.id}>
+            <strong>Sample sent</strong>{s.note && <>: {s.note}</>}
+            <br /><small>{s.by || 'Unknown'} | {new Date(s.sentAt).toLocaleString()}</small>
+            {s.response === 'approved' && (
+              <><br /><strong>Customer approved the sample</strong> | {new Date(s.respondedAt).toLocaleString()}</>
+            )}
+            {s.response === 'changes_requested' && (
+              <><br /><strong>Customer asked for changes:</strong> {s.responseNote} | {new Date(s.respondedAt).toLocaleString()}</>
+            )}
+            {!s.response && <><br /><small>Waiting for the customer to reply.</small></>}
+          </li>
+        ))}
+      </ul>
+      {approved && <p className="note">The sample is approved.</p>}
+      {!approved && waiting && <p className="note">Waiting for the customer to reply to the last sample.</p>}
+      {!approved && !waiting && !closed && (
+        <>
+          <label>Notes for the customer (optional)
+            <textarea rows="2" value={note} onChange={e => setNote(e.target.value)} maxLength={2000} />
+          </label>
+          <button type="button" className="btn gold" disabled={busy} onClick={send}>{busy ? 'Saving...' : 'Mark sample as sent'}</button>
+        </>
+      )}
+    </details>
+  );
+}
+
 export default function Enquiries() {
   usePageMeta('Quote requests');
   const [list, setList] = useState(null);
   const [events, setEvents] = useState([]);
   const [quotes, setQuotes] = useState([]);
+  const [samples, setSamples] = useState([]);
   const [filter, setFilter] = useState('All');
   const [err, setErr] = useState('');
   const load = async () => {
@@ -137,6 +189,7 @@ export default function Enquiries() {
       setList(await listEnquiries());
       setEvents(await listEvents());
       setQuotes(await listQuotes());
+      setSamples(await listSamples());
     } catch { setErr('Could not load quote requests.'); setList(l => l || []); }
   };
   useEffect(() => { load(); }, []);
@@ -188,6 +241,7 @@ export default function Enquiries() {
               </select>
             </div>
             <Quotes enquiry={e} quotes={mine} onAdded={load} onError={setErr} />
+            <Samples enquiry={e} quotes={mine} samples={samples.filter(x => x.enquiryId === e.id)} onAdded={load} onError={setErr} />
             <PoDownloads enquiryId={e.id} />
             <Notes enquiryId={e.id} events={events.filter(x => x.enquiryId === e.id)} onAdded={load} onError={setErr} />
           </div>

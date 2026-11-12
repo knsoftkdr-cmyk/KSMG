@@ -84,6 +84,11 @@ export async function myRequests() {
     id: r.id, rfqId: r.rfq_id, status: r.status || 'New', productName: r.product_name,
     quantity: r.quantity, location: r.location, neededBy: r.needed_by, message: r.message,
     createdAt: new Date(r.created_at).getTime(),
+      samples: (r.samples || []).map(s => ({
+      id: s.id, note: s.note || '', sentAt: new Date(s.sent_at).getTime(),
+      response: s.response || null, responseNote: s.response_note || '',
+      respondedAt: s.responded_at ? new Date(s.responded_at).getTime() : null,
+    })),
     quotes: (r.quotes || []).map(q => ({
       id: q.id, version: q.version, unitPrice: Number(q.unit_price), quantity: q.quantity,
       gst: Number(q.gst_percent), validUntil: q.valid_until, notes: q.notes,
@@ -124,4 +129,25 @@ export async function poSignedUrl(path) {
   const { data, error } = await supabase.storage.from('purchase-orders').createSignedUrl(path, 60);
   if (error) throw error;
   return data.signedUrl;
+}
+
+export async function listSamples() {
+  const { data, error } = await supabase.from('samples').select('*').order('sent_at', { ascending: true });
+  if (error) throw error;
+  return data.map(r => ({
+    id: r.id, enquiryId: r.enquiry_id, note: r.note || '', by: r.sent_by,
+    sentAt: new Date(r.sent_at).getTime(),
+    response: r.response || null, responseNote: r.response_note || '',
+    respondedAt: r.responded_at ? new Date(r.responded_at).getTime() : null,
+  }));
+}
+
+export async function sendSample(enquiryId, note = '') {
+  const { error } = await supabase.rpc('send_sample', { enquiry: enquiryId, note });
+  if (error) throw error;
+}
+
+export async function respondToSample(sampleId, answer, note = '') {
+  const { error } = await supabase.rpc('respond_to_sample', { sample: sampleId, answer, note });
+  if (error) throw error;
 }
