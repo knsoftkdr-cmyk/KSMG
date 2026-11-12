@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { myRequests, respondToQuote } from '../services/enquiries.js';
 import { useAuth } from '../services/auth.jsx';
-import usePageMeta from '../hooks/usePageMeta.js';
 import PoUpload from '../components/PoUpload.jsx';
+import usePageMeta from '../hooks/usePageMeta.js';
 
 const money = n => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-function QuoteBox({ q, isLatest, locked, onDone, onError }) {
+function QuoteBox({ q, isLatest, locked, closed, onDone, onError }) {
   const [asking, setAsking] = useState(false);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -60,8 +60,9 @@ function QuoteBox({ q, isLatest, locked, onDone, onError }) {
         <p className="quote-reply"><strong>You asked for changes</strong> on {new Date(q.respondedAt).toLocaleString()}: {q.responseNote}<br />We will send you a new quote.</p>
       )}
       {!q.response && !isLatest && <p className="note">This quote was replaced by a newer one.</p>}
-      {!q.response && isLatest && locked && <p className="note">Another quote was already accepted.</p>}
-      {!q.response && isLatest && !locked && (
+      {!q.response && isLatest && closed && <p className="note">This request is closed.</p>}
+      {!q.response && isLatest && !closed && locked && <p className="note">Another quote was already accepted.</p>}
+      {!q.response && isLatest && !locked && !closed && (
         <div className="quote-reply">
           {expired && <p className="note">This quote has expired. You can ask for a new one.</p>}
           {!asking && (
@@ -121,6 +122,7 @@ export default function MyRequests() {
       )}
       {list.map(r => {
         const locked = r.quotes.some(q => q.response === 'accepted');
+        const closed = r.status === 'Closed';
         return (
           <div key={r.id} className="card">
             <p className="rfq-id small">{r.rfqId}</p>
@@ -132,11 +134,15 @@ export default function MyRequests() {
               <span className={`status status-${r.status.replace(' ', '-').toLowerCase()}`}>{r.status}</span>
             </div>
             <h3>Quotes</h3>
-            {r.quotes.length === 0 && <p className="note">No quote has been sent to you yet. Our sales team is reviewing your request.</p>}
+            {r.quotes.length === 0 && (
+              <p className="note">
+                {closed ? 'This request is closed.' : 'No quote has been sent to you yet. Our sales team is reviewing your request.'}
+              </p>
+            )}
             {r.quotes.map((q, i) => (
-              <QuoteBox key={q.id} q={q} isLatest={i === 0} locked={locked} onDone={load} onError={setErr} />
+              <QuoteBox key={q.id} q={q} isLatest={i === 0} locked={locked} closed={closed} onDone={load} onError={setErr} />
             ))}
-              {locked && <PoUpload enquiryId={r.id} />}
+            {locked && !closed && <PoUpload enquiryId={r.id} />}
           </div>
         );
       })}

@@ -44,6 +44,7 @@ function Quotes({ enquiry, quotes, onAdded, onError }) {
   const [f, setF] = useState({ price: '', qty: enquiry.quantity ? String(enquiry.quantity) : '', gst: '5', valid: '', note: '' });
   const [busy, setBusy] = useState(false);
   const set = k => e => setF({ ...f, [k]: e.target.value });
+  const accepted = quotes.some(q => q.response === 'accepted');
   const today = new Date().toLocaleDateString('en-CA');
 
   const add = async () => {
@@ -93,7 +94,7 @@ function Quotes({ enquiry, quotes, onAdded, onError }) {
                 ? <><br /><small><strong>Sent to customer</strong> | {new Date(q.sentAt).toLocaleString()}</small></>
                 : <>
                     <br /><small>Draft: the customer cannot see this yet.</small>
-                    {enquiry.userId && (
+                    {enquiry.userId && !accepted && (
                       <> <button type="button" className="btn ghost" disabled={busy} onClick={() => send(q)}>Send to customer</button></>
                     )}
                   </>}
@@ -107,6 +108,10 @@ function Quotes({ enquiry, quotes, onAdded, onError }) {
           );
         })}
       </ul>
+      {accepted ? (
+        <p className="note">The customer accepted a quote, so no new version can be created.</p>
+      ) : (
+      <>
       <h3>New version (v{quotes.length + 1})</h3>
       <label>Price per piece<input type="number" min="0" step="0.01" value={f.price} onChange={set('price')} /></label>
       <label>Quantity<input type="number" min="1" step="1" value={f.qty} onChange={set('qty')} /></label>
@@ -114,6 +119,8 @@ function Quotes({ enquiry, quotes, onAdded, onError }) {
       <label>Valid until<input type="date" value={f.valid} min={today} onChange={set('valid')} /></label>
       <label>Notes (the customer sees these after you send)<textarea rows="2" value={f.note} onChange={set('note')} maxLength={2000} /></label>
       <button type="button" className="btn gold" disabled={busy} onClick={add}>{busy ? 'Saving...' : 'Save quote version'}</button>
+            </>
+      )}
     </details>
   );
 }
