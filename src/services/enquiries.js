@@ -216,3 +216,9 @@ export async function invoiceSignedUrl(path, downloadName) {
   if (error) throw error;
   return data.signedUrl;
 }
+
+
+export async function confirmDelivery(enquiryId) {
+  const { error } = await supabase.rpc('confirm_delivery', { p_enquiry: enquiryId });
+  if (error) throw error;
+}

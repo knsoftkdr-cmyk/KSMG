@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { myRequests, respondToQuote, respondToSample, myDispatches } from '../services/enquiries.js';
+import { myRequests, respondToQuote, respondToSample, myDispatches, confirmDelivery } from '../services/enquiries.js';
 import { useAuth } from '../services/auth.jsx';
 import PoUpload from '../components/PoUpload.jsx';
 import InvoiceDownloads from '../components/InvoiceDownloads.jsx';
@@ -183,7 +183,13 @@ export default function MyRequests() {
     return myRequests().then(setList).catch(() => { setErr('Could not load your requests.'); setList(l => l || []); });
   };
   useEffect(() => { if (uid) load(); }, [uid]);
-
+  
+  const receive = async r => {
+    if (!window.confirm('Confirm that you received this order?')) return;
+    setErr('');
+    try { await confirmDelivery(r.id); await load(); }
+    catch (e) { setErr(e?.message || 'Could not confirm delivery.'); }
+  };
   if (loading) return <section className="wrap narrow"><p>Loading...</p></section>;
   if (!user) {
     return (
@@ -230,6 +236,13 @@ export default function MyRequests() {
                 <small>On {new Date(d.sentAt).toLocaleString()}</small>
               </div>
             ))}
+
+            {r.status === 'Dispatched' && !closed && (
+              <div className="rfq-actions">
+                <button type="button" className="btn gold" onClick={() => receive(r)}>I received the order</button>
+              </div>
+            )}
+
             <h3>Quotes</h3>
             {r.quotes.length === 0 && (
               <p className="note">
