@@ -4,7 +4,7 @@ import { INDUSTRIES } from '../data/industries.js';
 import usePageMeta from '../hooks/usePageMeta.js';
 import { useAuth } from '../services/auth.jsx';
 import { listDesigns, saveDesign, deleteDesign } from '../services/designs.js';
-
+import GarmentArt from '../components/GarmentArt.jsx';
 const GARMENTS = ['Shirt', 'Trousers', 'Apron', 'Skirt', 'Pinafore', 'Blazer', 'Scrub top', 'Lab coat', 'Chef coat', 'Salon wear', 'Coverall', 'Hi-vis jacket', 'Gown'];
 const FABRICS = ['Cotton', 'Poly-cotton blend', 'Polyester', 'To be advised by sales team'];
 const COLOURS = [
@@ -48,6 +48,7 @@ export default function DesignStudio() {
   const [fabric, setFabric] = useState(FABRICS[0]);
   const [colour, setColour] = useState(COLOURS[0][1]);
   const [decoration, setDecoration] = useState('None');
+  const [pattern, setPattern] = useState('Plain');
   const [logoUrl, setLogoUrl] = useState('');
   const [logoOk, setLogoOk] = useState(false);
   const [qty, setQty] = useState({ S: 0, M: 0, L: 0, XL: 0, '2XL': 0 });
@@ -138,6 +139,11 @@ export default function DesignStudio() {
               ))}
             </div>
           </div>
+          <label>Pattern
+  <select value={pattern} onChange={e => setPattern(e.target.value)}>
+    {['Plain', 'Checks', 'Stripes'].map(p => <option key={p}>{p}</option>)}
+  </select>
+</label>
 
           <label>5. Logo (only a logo you are authorised to use)
             <input type="file" accept="image/*" onChange={onLogo} />
@@ -164,7 +170,7 @@ export default function DesignStudio() {
 
         <div className="ds-preview">
           <svg viewBox="0 0 200 220" role="img" aria-label={`Conceptual preview of a ${colourName} ${garment}`}>
-            <path d={SHAPES[garment]} fill={colour} stroke={strokeColour} strokeWidth="2" />
+            <GarmentArt garment={garment} colour={colour} stroke={strokeColour} pattern={pattern} />
             {logoUrl && logoOk !== 'bad' && (
               <image href={logoUrl} x={lx} y={ly} width="32" height="32" preserveAspectRatio="xMidYMid meet" onError={() => setLogoOk('bad')} />
             )}
@@ -173,6 +179,7 @@ export default function DesignStudio() {
           <ul className="ds-summary">
             <li>Garment: {garment} ({colourName})</li>
             <li>Fabric: {fabric}</li>
+            <li>Pattern: {pattern}</li>
             <li>Decoration: {decoration}</li>
             <li>Logo: {logoUrl ? 'added' : 'none'}</li>
             <li>Total quantity: {total}</li>
