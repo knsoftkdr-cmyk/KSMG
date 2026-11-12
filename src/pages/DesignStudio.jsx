@@ -68,7 +68,7 @@ export default function DesignStudio() {
     if (name.length > 80) return setMsg('Name can have at most 80 characters.');
     setSaving(true);
     try {
-      await saveDesign({ name, industry, garment, fabric, colour, decoration, sizes: qty });
+      await saveDesign({ name, industry, garment, fabric, colour, decoration, pattern, sizes: qty });
       setDname(''); setMsg('Design saved.');
       await loadDesigns();
     } catch (e) {
@@ -79,7 +79,7 @@ export default function DesignStudio() {
 
   const openDesign = d => {
     setIndustry(d.industry); setGarment(GARMENTS.includes(d.garment) ? d.garment : 'Shirt');
-    setFabric(d.fabric); setColour(d.colour); setDecoration(d.decoration);
+    setFabric(d.fabric); setColour(d.colour); setDecoration(d.decoration); setPattern(d.pattern || 'Plain');
     setQty({ S: 0, M: 0, L: 0, XL: 0, '2XL': 0, ...d.sizes });
     setMsg(`Opened "${d.name}".`);
   };
@@ -91,9 +91,27 @@ export default function DesignStudio() {
   };
 
   const total = useMemo(() => Object.values(qty).reduce((a, b) => a + (Number(b) || 0), 0), [qty]);
-  const colourName = (COLOURS.find(c => c[1] === colour) || ['Custom'])[0];
+  const colourName = (COLOURS.find(c => c[1] === colour) || ['Custom ' + colour])[0];
   const strokeColour = colour === '#ffffff' ? '#999' : 'rgba(0,0,0,0.35)';
   const [lx, ly] = LOGO_POS[garment];
+  
+  const rememberDesign = () => {
+    const ind = INDUSTRIES.find(i => i.slug === industry);
+    const sizeText = SIZES.filter(s => qty[s] > 0).map(s => `${s}: ${qty[s]}`).join(', ') || 'not entered yet';
+    const text = [
+      'Design from Design Studio (conceptual preview, for technical review):',
+      `Industry: ${ind ? ind.name : industry}`,
+      `Garment: ${garment}`,
+      `Colour: ${colourName}`,
+      `Pattern: ${pattern}`,
+      `Fabric: ${fabric}`,
+      `Decoration: ${decoration}`,
+      `Logo: ${logoUrl ? 'yes (will share the file separately)' : 'none'}`,
+      `Sizes: ${sizeText}`,
+      `Total quantity: ${total}`,
+    ].join('\n');
+    try { sessionStorage.setItem('ksmg-design', JSON.stringify({ text, total, industry: ind ? ind.name : '' })); } catch { /* ignore */ }
+  };
 
   function onLogo(e) {
     const f = e.target.files && e.target.files[0];
@@ -137,6 +155,10 @@ export default function DesignStudio() {
                   className={colour === c ? 'sw on' : 'sw'} style={{ background: c }}
                   onClick={() => setColour(c)} />
               ))}
+              <label className="sw-pick" title="Pick any colour">
+  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M20.71 5.63l-2.34-2.34a1 1 0 0 0-1.41 0l-3.12 3.12-1.93-1.91-1.41 1.41 1.42 1.42L3 16.25V21h4.75l8.92-8.92 1.42 1.42 1.41-1.41-1.92-1.92 3.12-3.12c.4-.4.4-1.03.01-1.42zM6.92 19L5 17.08l8.06-8.06 1.92 1.92L6.92 19z" /></svg>
+  <input type="color" value={colour} aria-label="Pick any colour" onChange={e => setColour(e.target.value)} />
+</label>
             </div>
           </div>
           <label>Pattern
@@ -184,7 +206,7 @@ export default function DesignStudio() {
             <li>Logo: {logoUrl ? 'added' : 'none'}</li>
             <li>Total quantity: {total}</li>
           </ul>
-          <Link to="/quote" className="btn gold">Request review and quotation</Link>
+          <Link to="/quote?design=1" onClick={rememberDesign} className="btn gold">Request review and quotation</Link>
                     {user ? (
             <div className="ds-save">
               <label>Design name

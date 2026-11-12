@@ -6,16 +6,22 @@ import { useAuth } from '../services/auth.jsx';
 import { INDUSTRIES } from '../data/industries.js';
 import usePageMeta from '../hooks/usePageMeta.js';
 
+
+function readDesign(wanted) {
+  if (!wanted) return null;
+  try { return JSON.parse(sessionStorage.getItem('ksmg-design') || 'null'); } catch { return null; }
+}
 export default function Quote() {
   usePageMeta('Request a quote', 'Send your uniform requirements, sizes and quantities to get a quotation from Prasanna Reddy Garments.');
   const [params] = useSearchParams();
   const location = useLocation();
   const { user, loading } = useAuth();
   const [products, setProducts] = useState([]);
+  const design = readDesign(params.get('design') === '1');
   const [f, setF] = useState({
-    name: '', organisation: '', industry: '', email: '', phone: '',
-    productId: params.get('product') || '', quantity: '',
-    location: '', neededBy: '', message: '',
+    name: '', organisation: '', industry: design?.industry || '', email: '', phone: '',
+    productId: params.get('product') || '', quantity: design?.total > 0 ? String(design.total) : '',
+    location: '', neededBy: '', message: design?.text || '',
   });
   const [rfqId, setRfqId] = useState('');
   const [err, setErr] = useState('');
@@ -38,7 +44,9 @@ export default function Quote() {
     setBusy(true);
     try {
       const p = products.find(x => x.id === f.productId);
-      setRfqId(await submitEnquiry({ ...f, email }, p?.name || '', p?.id || ''));
+      const id = await submitEnquiry({ ...f, email }, p?.name || '', p?.id || '');
+      try { sessionStorage.removeItem('ksmg-design'); } catch { /* ignore */ }
+      setRfqId(id);
     } catch {
       setErr('Could not send your request. Please try again.');
     }
@@ -79,6 +87,8 @@ export default function Quote() {
     <section className="wrap narrow">
       <h1>Request a quote</h1>
       <form onSubmit={submit}>
+        
+        {design && <p className="ds-note small">Your Design Studio details are filled in below. You can edit them.</p>}
         <label>Your name<input value={f.name} onChange={set('name')} required /></label>
         <label>Organisation<input value={f.organisation} onChange={set('organisation')} /></label>
         <label>Industry
