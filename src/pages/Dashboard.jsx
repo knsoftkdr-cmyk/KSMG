@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { listEnquiries } from '../services/enquiries.js';
 import usePageMeta from '../hooks/usePageMeta.js';
 
-const STATUSES = ['New', 'In review', 'Quoted', 'Closed'];
+const STATUSES = ['New', 'In review', 'Quoted', 'Accepted', 'PO received', 'Closed'];
 const dayKey = t => new Date(t).toLocaleDateString('en-CA');
 
 function countBy(list, fn) {

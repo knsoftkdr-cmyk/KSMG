@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { myRequests, respondToQuote } from '../services/enquiries.js';
 import { useAuth } from '../services/auth.jsx';
 import usePageMeta from '../hooks/usePageMeta.js';
+import PoUpload from '../components/PoUpload.jsx';
 
 const money = n => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -135,6 +136,7 @@ export default function MyRequests() {
             {r.quotes.map((q, i) => (
               <QuoteBox key={q.id} q={q} isLatest={i === 0} locked={locked} onDone={load} onError={setErr} />
             ))}
+              {locked && <PoUpload enquiryId={r.id} />}
           </div>
         );
       })}

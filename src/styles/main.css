@@ -391,3 +391,9 @@ main:focus { outline: none; }
 .quote-reply { margin: 10px 0; padding: 10px 12px; border-radius: 10px; background: rgba(201, 162, 74, 0.15); }
 .quote-reply textarea { width: 100%; }
 .card .rfq-actions + h3 { margin-top: 20px; }
+
+.po-box { margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(128, 128, 128, 0.3); }
+.po-box ul { padding-left: 18px; }
+
+.status-accepted { background: rgba(31, 107, 74, 0.35); border-color: #1f6b4a; }
+.status-po-received { background: rgba(70, 120, 200, 0.3); border-color: #4678c8; }

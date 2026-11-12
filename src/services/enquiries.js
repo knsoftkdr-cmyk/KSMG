@@ -93,3 +93,35 @@ export async function myRequests() {
     })),
   }));
 }
+
+export async function listPosFor(enquiryId) {
+  const { data, error } = await supabase.from('purchase_orders')
+    .select('id, po_number, file_name, file_path, created_at')
+    .eq('enquiry_id', enquiryId).order('created_at', { ascending: false });
+  if (error) throw error;
+  return data.map(r => ({
+    id: r.id, poNumber: r.po_number, fileName: r.file_name, filePath: r.file_path,
+    createdAt: new Date(r.created_at).getTime(),
+  }));
+}
+
+export async function uploadPo(enquiryId, file, poNumber) {
+  const { data: u } = await supabase.auth.getUser();
+  const uid = u?.user?.id;
+  if (!uid) throw new Error('Please log in.');
+  const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-80);
+  const path = `${uid}/${enquiryId}/${Date.now()}-${safe}`;
+  const { error: upErr } = await supabase.storage.from('purchase-orders')
+    .upload(path, file, { contentType: file.type, upsert: false });
+  if (upErr) { console.error(upErr); throw new Error('Could not upload the file. Please try again.'); }
+  const { error } = await supabase.rpc('register_po', {
+    enquiry: enquiryId, path, fname: file.name.slice(0, 200), po_no: poNumber || '',
+  });
+  if (error) throw error;
+}
+
+export async function poSignedUrl(path) {
+  const { data, error } = await supabase.storage.from('purchase-orders').createSignedUrl(path, 60);
+  if (error) throw error;
+  return data.signedUrl;
+}

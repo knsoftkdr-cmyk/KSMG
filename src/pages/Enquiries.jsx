@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { listEnquiries, setEnquiryStatus, listEvents, addNote, listQuotes, addQuote, sendQuote } from '../services/enquiries.js';
 import usePageMeta from '../hooks/usePageMeta.js';
+import PoDownloads from '../components/PoDownloads.jsx';
 
-const STATUSES = ['New', 'In review', 'Quoted', 'Closed'];
+const STATUSES = ['New', 'In review', 'Quoted', 'Accepted', 'PO received', 'Closed'];
 const money = n => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function Notes({ enquiryId, events, onAdded, onError }) {
@@ -180,6 +181,7 @@ export default function Enquiries() {
               </select>
             </div>
             <Quotes enquiry={e} quotes={mine} onAdded={load} onError={setErr} />
+            <PoDownloads enquiryId={e.id} />
             <Notes enquiryId={e.id} events={events.filter(x => x.enquiryId === e.id)} onAdded={load} onError={setErr} />
           </div>
         );
