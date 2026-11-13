@@ -5,6 +5,15 @@ import Photo from '../components/Photo.jsx';
 import { INDUSTRIES } from '../data/industries.js';
 import usePageMeta from '../hooks/usePageMeta.js';
 const BIG = ['schools', 'healthcare'];
+const ORBS = [
+  ['orb-school', '/industries/schools', 'School uniforms'],
+  ['orb-health', '/industries/healthcare', 'Healthcare'],
+  ['orb-office', '/industries/corporate', 'Corporate'],
+  ['orb-air', '/industries/hospitality', 'Hospitality'],
+  ['orb-work', '/industries/industrial', 'Workwear'],
+  ['orb-kids', '/industries/schools', 'School teams'],
+];
+const IMGS = ['schools', 'healthcare', 'corporate', 'hospitality', 'industrial', 'government', 'transport', 'retail', 'sports', 'food', 'beauty', 'ceremonial', 'events', 'facilities', 'specialised'];
 const STEPS = [
   ['Send a request', 'Pick products, add sizes and quantities.'],
   ['Get a quotation', 'Our sales team prepares costing for you.'],
@@ -25,6 +34,15 @@ export default function Home() {
             <path d="M-20 360 C 240 260, 600 480, 900 340 S 1300 140, 1480 220" stroke="#fff" strokeOpacity=".25" strokeWidth="2" />
           </g>
         </svg>
+
+        <div className="orbs">
+          {ORBS.map(([img, to, label], i) => (
+            <Link key={img} to={to} className={`orb o${i + 1}`} aria-label={label}>
+              <img src={`/images/orbs/${img}.jpg`} alt="" />
+            </Link>
+          ))}
+        </div>
+
         <div className="hero-in">
           <h1>Every profession. Every institution.</h1>
           <p>One supplier for school, hospital, office, hotel and factory uniforms. Browse the catalogue, then send your quantities for a quotation.</p>
@@ -32,6 +50,22 @@ export default function Home() {
             <Link className="btn gold" to="/quote">Request a quote</Link>
             <Link className="btn ghost" to="/products">Browse products</Link>
           </div>
+        </div>
+      </section>
+
+                 <section className="wrap showcase">
+        <h2>Fifteen industries, one supplier</h2>
+        <div className="show-grid">
+          {INDUSTRIES.map((i, n) => (
+            <div className="show-item" key={i.slug}>
+              <Link to={`/industries/${i.slug}`} className="show-card" style={{ animationDelay: `${(n % 5) * 0.6}s` }}>
+                {IMGS[n]
+                  ? <img src={`/images/cards/${IMGS[n]}.jpg`} alt={i.name} loading="lazy" />
+                  : <span className="show-ph" aria-hidden="true" />}
+                <span className="show-cap"><strong>{i.name}</strong><small>{i.blurb}</small></span>
+              </Link>
+            </div>
+          ))}
         </div>
       </section>
 

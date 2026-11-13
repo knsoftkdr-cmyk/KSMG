@@ -12,7 +12,7 @@ export default function Navbar() {
   const close = () => { setOpen(false); setMega(false); };
   return (
     <header className="nav">
-      <Link to="/" className="brand" onClick={close}>{COMPANY.brand}<small>KSMG Global</small></Link>
+      <Link to="/" className="brand" onClick={close}><img src="/images/ksmg-logo.png" alt="KSMG Global Private Limited" /></Link>
       <button className="menu" aria-expanded={open} aria-label="Menu" onClick={() => setOpen(!open)}>{open ? 'Close' : 'Menu'}</button>
       <nav className={open ? 'open' : ''} onClick={close}>
         <NavLink to="/" end>Home</NavLink>
