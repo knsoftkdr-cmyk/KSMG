@@ -1,7 +1,9 @@
+import * as R from 'react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getAll } from '../services/db.js';
 import Photo from '../components/Photo.jsx';
+import IndIcon from '../components/IndIcon.jsx';
 import { INDUSTRIES } from '../data/industries.js';
 import usePageMeta from '../hooks/usePageMeta.js';
 const BIG = ['schools', 'healthcare'];
@@ -20,6 +22,30 @@ const STEPS = [
   ['Approve and sample', 'Confirm the quote, review samples if needed.'],
   ['We make and deliver', 'Production, quality check, dispatch.'],
 ];
+
+function CountUp({ to }) {
+  const ref = R.useRef(null);
+  const [n, setN] = R.useState(0);
+  R.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([e]) => {
+      if (!e.isIntersecting) return;
+      io.disconnect();
+      const t0 = performance.now();
+      const step = (t) => {
+        const p = Math.min((t - t0) / 1400, 1);
+        setN(Math.round(to * (1 - Math.pow(1 - p, 3))));
+        if (p < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    }, { threshold: 0.4 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [to]);
+  return <span ref={ref}>{n}</span>;
+}
+
 export default function Home() {
   usePageMeta('Uniforms for every industry', 'School, hospital, corporate, hospitality and industrial uniforms. Browse the catalogue and request a bulk quotation from KSMG Global.');
   const [feat, setFeat] = useState([]);
@@ -53,41 +79,59 @@ export default function Home() {
         </div>
       </section>
 
-                 <section className="wrap showcase">
-        <h2>Fifteen industries, one supplier</h2>
-        <div className="show-grid">
-          {INDUSTRIES.map((i, n) => (
-            <div className="show-item" key={i.slug}>
-              <Link to={`/industries/${i.slug}`} className="show-card" style={{ animationDelay: `${(n % 5) * 0.6}s` }}>
-                {IMGS[n]
-                  ? <img src={`/images/cards/${IMGS[n]}.jpg`} alt={i.name} loading="lazy" />
-                  : <span className="show-ph" aria-hidden="true" />}
-                <span className="show-cap"><strong>{i.name}</strong><small>{i.blurb}</small></span>
-              </Link>
-            </div>
-          ))}
-        </div>
-      </section>
+      <section className="wrap showcase" id="industries">
+  <h2>Fifteen industries, one supplier</h2>
+  <div className="show-grid">
+    {INDUSTRIES.map((i, n) => (
+      <div className="show-item" key={i.slug}>
+        <Link to={`/industries/${i.slug}`} className="show-card" style={{ animationDelay: `${(n % 5) * 0.6}s` }}>
+          {IMGS[n]
+            ? <img src={`/images/cards/${IMGS[n]}.jpg`} alt={i.name} loading="lazy" />
+            : <span className="show-ph" aria-hidden="true" />}
+          <span className="show-cap"><strong>{i.name}</strong><small>{i.blurb}</small></span>
+        </Link>
+      </div>
+    ))}
+  </div>
+</section>
 
-      <section className="wrap">
-        <h2>Fifteen industries, one supplier</h2>
-        <div className="grid bento">
-          {INDUSTRIES.map(i => (
-            <Link key={i.slug} to={`/industries/${i.slug}`} className={`card thread ${BIG.includes(i.slug) ? 'big' : ''}`}>
-              <h3>{i.name}</h3><p>{i.blurb}</p>
-            </Link>
-          ))}
-        </div>
-      </section>
+<section className="wrap about">
+  <div className="about-text">
+    <span className="eyebrow">About us</span>
+    <h2>KSMG Global Private Limited</h2>
+    <p>KSMG Global Private Limited is a Hyderabad based textile company offering a complete range of uniform fabrics for schools, corporate offices, hospitality and healthcare institutions.</p>
+    <p>From vibrant checks and classic stripes to rich plain shades and premium suitings, our collection is selected for comfort, durability and a smart, consistent look, wash after wash.</p>
+    <ul className="about-why">
+      <li><strong>Wide Range</strong><span>Checks, stripes, plains and suitings</span></li>
+      <li><strong>Lasting Quality</strong><span>Durable, colour-fast fabrics</span></li>
+      <li><strong>Custom Solutions</strong><span>Shades and designs for your institution</span></li>
+      <li><strong>Reliable Supply</strong><span>Bulk orders with timely delivery</span></li>
+    </ul>
+  </div>
+  <div className="about-img">
+    <img src="/images/about-kids.jpg" alt="School students in KSMG uniforms" loading="lazy" />
+  </div>
+</section>
 
-      {feat.length > 0 && (
-        <section className="wrap alt">
-          <h2>Featured collections</h2>
-          <div className="grid">
-            {feat.map(p => <Link key={p.id} to={`/products/${p.id}`} className="card prod"><Photo blob={p.photos[0]} alt={p.name} /><h3>{p.name}{p.sample && <span className="tag">Sample</span>}</h3></Link>)}
-          </div>
-        </section>
-      )}
+
+<section className="wrap why">
+  <div className="sec-head">
+    <span className="eyebrow">Why choose us</span>
+    <h2>Quality you can rely on</h2>
+  </div>
+  <div className="why-grid">
+    <div className="why-card"><strong>Wide Range</strong><span>Checks, stripes, plains and suitings</span></div>
+    <div className="why-card"><strong>Lasting Quality</strong><span>Durable, colour-fast fabrics</span></div>
+    <div className="why-card"><strong>Custom Solutions</strong><span>Shades and designs for your institution</span></div>
+    <div className="why-card"><strong>Reliable Supply</strong><span>Bulk orders with timely delivery</span></div>
+  </div>
+  <div className="stats">
+    <div className="stat"><b><CountUp to={15} /></b><span>Industries served</span></div>
+    <div className="stat"><b><CountUp to={4} /></b><span>Fabric types</span></div>
+    <div className="stat"><b><CountUp to={3} /></b><span>Collections</span></div>
+    <div className="stat"><b className="txt">Hyderabad</b><span>Based</span></div>
+  </div>
+</section>
 
       <section className="dark">
         <div className="wrap">
@@ -98,6 +142,34 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="wrap contact-sec">
+  <div className="sec-head">
+    <span className="eyebrow">Get in touch</span>
+    <h2>Let's dress your institution in quality</h2>
+  </div>
+  <div className="contact-grid">
+    <div className="contact-info">
+      <img className="contact-logo" src="/images/ksmg-logo.png" alt="KSMG Global Private Limited" loading="lazy" />
+      <ul className="contact-list">
+        <li><b>Phone</b><a href="tel:+919896289628">+91 98-9628 9628</a></li>
+        <li><b>Email</b><a href="mailto:pr@ksmgtextiles.com">info@ksmgtextiles.com</a></li>
+        <li><b>Website</b><span>www.ksmgtextiles.com</span></li>
+        <li><b>Boduppal</b><span>H. No. 8-43/37/6/C, Sai Bhavani Nagar, Boduppal, Near Substation, East Balaji Hills, Medchal-Malkajgiri District, Telangana – 500039, India.</span></li>
+<li><b>Kondapur</b><span>Aditya Neeladri, 4th Cross, Block-C, Sriram Nagar, Kondapur, Hyderabad – 500084, India.</span></li>
+      </ul>
+      <Link to="/quote" className="btn gold">Request a quote</Link>
+    </div>
+    <div className="contact-map">
+      <iframe
+        title="KSMG Global location"
+        src="https://www.google.com/maps?q=Sai+Bhavani+Nagar+Boduppal+Telangana+500039&output=embed"
+        loading="lazy"
+        referrerPolicy="no-referrer-when-downgrade"
+      />
+    </div>
+  </div>
+</section>
+      
       <section className="wrap alt">
         <h2>Fabrics, quality and manufacturing</h2>
         <div className="grid">

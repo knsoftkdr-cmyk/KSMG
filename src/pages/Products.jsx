@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { getAll } from '../services/db.js';
 import { INDUSTRIES, industryName, bdClass } from '../data/industries.js';
 import Photo from '../components/Photo.jsx';
+import ProductShowcase from '../components/ProductShowcase.jsx';
 import usePageMeta from '../hooks/usePageMeta.js';
 export default function Products() {
   usePageMeta('All uniform collections', 'Browse uniforms by industry. Search the catalogue and request a bulk quotation.');
@@ -15,9 +16,10 @@ export default function Products() {
     (p.name + p.sku + p.fabric + (p.category || '')).toLowerCase().includes(q.toLowerCase())).sort((a, b) => b.createdAt - a.createdAt);
   return (
     <>
-      <div className={`banner ${bdClass(industry)}`}>
-        <div><h1>{industry ? industryName(industry) : 'Products'}</h1><p>{INDUSTRIES.find(i => i.slug === industry)?.blurb || 'Browse uniforms for every industry.'}</p></div>
-      </div>
+      <section className="wrap" style={{ paddingBottom: 0 }}>
+  <h1>{industry ? industryName(industry) : 'Products'}</h1>
+</section>
+
       <section className="wrap">
         <div className="row">
           <input placeholder="Search name, SKU, category or fabric" value={q} onChange={e => setQ(e.target.value)} />
@@ -26,17 +28,10 @@ export default function Products() {
             {INDUSTRIES.map(i => <option key={i.slug} value={i.slug}>{i.name}</option>)}
           </select>
         </div>
-        {!items && <p>Loading...</p>}
-        {items && list.length === 0 && <p>No products match. <Link to="/admin/add-product">Add a product</Link>.</p>}
-        <div className="grid">
-          {list.map(p => (
-            <Link key={p.id} to={`/products/${p.id}`} className="card prod">
-              <Photo blob={p.photos[0]} alt={p.name} />
-              <h2>{p.name}{p.sample && <span className="tag">Sample</span>}</h2>
-              <p>{industryName(p.industry)}</p>
-            </Link>
-          ))}
-        </div>
+
+        {!industry && <ProductShowcase />}
+        
+       
       </section>
     </>
   );
