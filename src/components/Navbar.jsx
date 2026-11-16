@@ -68,6 +68,7 @@ export default function Navbar() {
         {['product_manager', 'super_admin'].includes(role) && <NavLink to="/admin/add-product">Add product</NavLink>}
         {['sales', 'super_admin'].includes(role) && <NavLink to="/admin/enquiries">Enquiries</NavLink>}
         {['sales', 'super_admin'].includes(role) && <NavLink to="/admin/dashboard">Dashboard</NavLink>}
+        {['product_manager', 'super_admin'].includes(role) && <NavLink to="/admin/pricing">Pricing</NavLink>}
         {role === 'super_admin' && <NavLink to="/admin/staff">Staff</NavLink>}
         {user && <NavLink to="/my-requests">My requests</NavLink>}
         <NavLink to="/login">{user ? 'Account' : 'Log in'}</NavLink>

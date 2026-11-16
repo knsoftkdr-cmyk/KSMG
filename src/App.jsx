@@ -16,6 +16,7 @@ import DesignStudio3D from './pages/DesignStudio3D.jsx';
 import Login from './pages/Login.jsx';
 import Staff from './pages/Staff.jsx';
 import Dashboard from './pages/Dashboard.jsx';
+import Pricing from './pages/Pricing.jsx';
 import MyRequests from './pages/MyRequests.jsx';
 import RequireRole from './components/RequireRole.jsx';
 import { CONTENT } from './data/content.js';
@@ -42,6 +43,7 @@ export default function App() {
           <Route path="/admin/edit-product/:id" element={<RequireRole roles={['product_manager', 'super_admin']}><AddProduct /></RequireRole>} />
           <Route path="/admin/enquiries" element={<RequireRole roles={['sales', 'super_admin']}><Enquiries /></RequireRole>} />
           <Route path="/admin/dashboard" element={<RequireRole roles={['sales', 'super_admin']}><Dashboard /></RequireRole>} />
+          <Route path="/admin/pricing" element={<RequireRole roles={['product_manager', 'super_admin']}><Pricing /></RequireRole>} />
           <Route path="/admin/staff" element={<RequireRole roles={['super_admin']}><Staff /></RequireRole>} />
           <Route path="/my-requests" element={<MyRequests />} />
           <Route path="/contact" element={<Info kind="contact" />} />

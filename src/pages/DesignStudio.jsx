@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef, lazy, Suspense } from 'react';
-import { estimate } from '../data/pricing.js';
+import { estimate, setRates } from '../data/pricing.js';
+import { getSetting } from '../services/settings.js';
 import { Link } from 'react-router-dom';
 import { INDUSTRIES } from '../data/industries.js';
 import usePageMeta from '../hooks/usePageMeta.js';
@@ -62,6 +63,10 @@ export default function DesignStudio() {
   const [msg, setMsg] = useState('');
   const [saving, setSaving] = useState(false);
   const uid = user?.id;
+  const [, setRatesTick] = useState(0);
+  useEffect(() => {
+  getSetting('pricing').then(r => { if (r) { setRates(r); setRatesTick(t => t + 1); } }).catch(() => {});
+}, []);
 
   const [hist, setHist] = useState({ list: [], i: -1 });
 const snap = useMemo(() => ({ industry, garment, fabric, colour, decoration, pattern, qty }), [industry, garment, fabric, colour, decoration, pattern, qty]);
