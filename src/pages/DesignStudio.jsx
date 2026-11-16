@@ -1,10 +1,11 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { INDUSTRIES } from '../data/industries.js';
 import usePageMeta from '../hooks/usePageMeta.js';
 import { useAuth } from '../services/auth.jsx';
 import { listDesigns, saveDesign, deleteDesign } from '../services/designs.js';
 import GarmentArt from '../components/GarmentArt.jsx';
+const Garment3D = lazy(() => import('../components/Garment3D.jsx'));
 const GARMENTS = ['Shirt', 'Trousers', 'Apron', 'Skirt', 'Pinafore', 'Blazer', 'Scrub top', 'Lab coat', 'Chef coat', 'Salon wear', 'Coverall', 'Hi-vis jacket', 'Gown'];
 const FABRICS = ['Cotton', 'Poly-cotton blend', 'Polyester', 'To be advised by sales team'];
 const COLOURS = [
@@ -12,7 +13,8 @@ const COLOURS = [
   ['Maroon', '#7a1f2b'], ['Green', '#1f6b4a'], ['Black', '#1a1a1a'], ['Khaki', '#b8a77a'],
 ];
 const DECORATION = ['None', 'Embroidery', 'Screen print', 'Heat transfer'];
-const SIZES = ['S', 'M', 'L', 'XL', '2XL'];
+const SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'];
+const EMPTY_QTY = { XS: 0, S: 0, M: 0, L: 0, XL: 0, '2XL': 0, '3XL': 0 };
 
 const SHAPES = {
   Shirt: 'M60 20 L80 12 Q100 28 120 12 L140 20 L180 55 L160 85 L142 72 L142 205 L58 205 L58 72 L40 85 L20 55 Z',
@@ -49,15 +51,33 @@ export default function DesignStudio() {
   const [colour, setColour] = useState(COLOURS[0][1]);
   const [decoration, setDecoration] = useState('None');
   const [pattern, setPattern] = useState('Plain');
+  const [mode, setMode] = useState('2d');
   const [logoUrl, setLogoUrl] = useState('');
   const [logoOk, setLogoOk] = useState(false);
-  const [qty, setQty] = useState({ S: 0, M: 0, L: 0, XL: 0, '2XL': 0 });
+  const [qty, setQty] = useState(EMPTY_QTY);
   const { user } = useAuth();
   const [designs, setDesigns] = useState([]);
   const [dname, setDname] = useState('');
   const [msg, setMsg] = useState('');
   const [saving, setSaving] = useState(false);
   const uid = user?.id;
+
+  const [hist, setHist] = useState({ list: [], i: -1 });
+const snap = useMemo(() => ({ industry, garment, fabric, colour, decoration, pattern, qty }), [industry, garment, fabric, colour, decoration, pattern, qty]);
+useEffect(() => {
+  const t = setTimeout(() => setHist(h => {
+    if (h.i >= 0 && JSON.stringify(h.list[h.i]) === JSON.stringify(snap)) return h;
+    const list = [...h.list.slice(0, h.i + 1), snap].slice(-50);
+    return { list, i: list.length - 1 };
+  }), 400);
+  return () => clearTimeout(t);
+}, [snap]);
+const applySnap = s => {
+  setIndustry(s.industry); setGarment(s.garment); setFabric(s.fabric); setColour(s.colour);
+  setDecoration(s.decoration); setPattern(s.pattern); setQty(s.qty);
+};
+const undo = () => { if (hist.i > 0) { applySnap(hist.list[hist.i - 1]); setHist(h => ({ ...h, i: h.i - 1 })); } };
+const redo = () => { if (hist.i < hist.list.length - 1) { applySnap(hist.list[hist.i + 1]); setHist(h => ({ ...h, i: h.i + 1 })); } };
 
   const loadDesigns = () => listDesigns().then(setDesigns).catch(() => setMsg('Could not load your saved designs.'));
   useEffect(() => { if (uid) loadDesigns(); else setDesigns([]); }, [uid]);
@@ -80,7 +100,7 @@ export default function DesignStudio() {
   const openDesign = d => {
     setIndustry(d.industry); setGarment(GARMENTS.includes(d.garment) ? d.garment : 'Shirt');
     setFabric(d.fabric); setColour(d.colour); setDecoration(d.decoration); setPattern(d.pattern || 'Plain');
-    setQty({ S: 0, M: 0, L: 0, XL: 0, '2XL': 0, ...d.sizes });
+    setQty({ ...EMPTY_QTY, ...d.sizes });
     setMsg(`Opened "${d.name}".`);
   };
 
@@ -191,12 +211,38 @@ export default function DesignStudio() {
         </div>
 
         <div className="ds-preview">
+          <div className="ds-mode">
+          <button type="button" className="btn ghost" title="Undo" aria-label="Undo" disabled={hist.i <= 0} onClick={undo}>↶</button>
+{/* <button type="button" className="btn ghost" title="Redo" aria-label="Redo" disabled={hist.i >= hist.list.length - 1} onClick={redo}>↷</button> */}
+          <button type="button" className="btn ghost" title="Redo" aria-label="Redo" disabled={hist.i >= hist.list.length - 1} onClick={redo}>↷</button>
+        </div>
+            <div className="ds-mode">
+            <button type="button" className={mode === '2d' ? 'btn gold' : 'btn ghost'} onClick={() => setMode('2d')}>2D</button>
+            <button type="button" className={mode === '3d' ? 'btn gold' : 'btn ghost'} onClick={() => setMode('3d')}>3D</button>
+          </div>
+          {mode === '3d' ? (
+            <Suspense fallback={<p className="ds-note small">Loading 3D...</p>}>
+              <Garment3D garment={garment} colour={colour} pattern={pattern} />
+            </Suspense>
+          ) : (
           <svg viewBox="0 0 200 220" role="img" aria-label={`Conceptual preview of a ${colourName} ${garment}`}>
             <GarmentArt garment={garment} colour={colour} stroke={strokeColour} pattern={pattern} />
-            {logoUrl && logoOk !== 'bad' && (
-              <image href={logoUrl} x={lx} y={ly} width="32" height="32" preserveAspectRatio="xMidYMid meet" onError={() => setLogoOk('bad')} />
-            )}
+            {logoUrl && (
+  <div className="ds-field">
+    <span>Logo position and size</span>
+    <div className="ds-mode">
+      <button type="button" className="btn ghost" title="Left" aria-label="Move left" onClick={() => setLogoPos(p => ({ ...p, dx: Math.max(-60, p.dx - 4) }))}>←</button>
+      <button type="button" className="btn ghost" title="Right" aria-label="Move right" onClick={() => setLogoPos(p => ({ ...p, dx: Math.min(60, p.dx + 4) }))}>→</button>
+      <button type="button" className="btn ghost" title="Up" aria-label="Move up" onClick={() => setLogoPos(p => ({ ...p, dy: Math.max(-60, p.dy - 4) }))}>↑</button>
+      <button type="button" className="btn ghost" title="Down" aria-label="Move down" onClick={() => setLogoPos(p => ({ ...p, dy: Math.min(100, p.dy + 4) }))}>↓</button>
+      <button type="button" className="btn ghost" title="Smaller" aria-label="Smaller logo" onClick={() => setLogoPos(p => ({ ...p, size: Math.max(12, p.size - 4) }))}>−</button>
+      <button type="button" className="btn ghost" title="Bigger" aria-label="Bigger logo" onClick={() => setLogoPos(p => ({ ...p, size: Math.min(80, p.size + 4) }))}>+</button>
+      <button type="button" className="btn ghost" title="Reset" aria-label="Reset logo" onClick={() => setLogoPos({ dx: 0, dy: 0, size: 32 })}>↺</button>
+    </div>
+  </div>
+)}
           </svg>
+                    )}
           <p className="ds-badge">CONCEPTUAL PREVIEW</p>
           <ul className="ds-summary">
             <li>Garment: {garment} ({colourName})</li>
@@ -212,7 +258,7 @@ export default function DesignStudio() {
               <label>Design name
                 <input type="text" value={dname} maxLength={80} onChange={e => setDname(e.target.value)} placeholder="e.g. School shirt, blue" />
               </label>
-              <button type="button" className="btn ghost" disabled={saving} onClick={save}>{saving ? 'Saving...' : 'Save design'}</button>
+              <button type="button" className="btn ghost" title="Undo" aria-label="Undo" disabled={hist.i <= 0} onClick={undo}>↶</button>
               {msg && <p className="ds-note small" role="status">{msg}</p>}
               {designs.length > 0 && (
                 <>

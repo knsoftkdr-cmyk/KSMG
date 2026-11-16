@@ -1,7 +1,7 @@
 // Conceptual garment drawings (flat-lay style, with shading, seams, buttons, pockets).
 // Plain functions that return SVG markup, so they are easy to test.
 
-const BODY = {
+export const BODY = {
   Shirt: 'M60 20 L80 12 Q100 28 120 12 L140 20 L180 55 L160 85 L142 72 L142 205 L58 205 L58 72 L40 85 L20 55 Z',
   Trousers: 'M55 15 L145 15 L152 205 L108 205 L100 85 L92 205 L48 205 Z',
   Apron: 'M75 10 L125 10 L128 55 L160 70 L150 205 L50 205 L40 70 L72 55 Z',

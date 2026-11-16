@@ -1,0 +1,11 @@
+Model Information:
+* title:	Pants 1
+* source:	https://sketchfab.com/3d-models/pants-1-8784b8cf48aa490797cd13c33ccd60e8
+* author:	neutralize (https://sketchfab.com/neutralize)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Pants 1" (https://sketchfab.com/3d-models/pants-1-8784b8cf48aa490797cd13c33ccd60e8) by neutralize (https://sketchfab.com/neutralize) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

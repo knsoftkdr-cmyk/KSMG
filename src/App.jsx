@@ -12,6 +12,7 @@ import Info from './pages/Info.jsx';
 import ContentPage from './pages/ContentPage.jsx';
 import IndustryDetail from './pages/IndustryDetail.jsx';
 import DesignStudio from './pages/DesignStudio.jsx';
+import DesignStudio3D from './pages/DesignStudio3D.jsx';
 import Login from './pages/Login.jsx';
 import Staff from './pages/Staff.jsx';
 import Dashboard from './pages/Dashboard.jsx';
@@ -35,6 +36,7 @@ export default function App() {
           <Route path="/products/:id" element={<ProductDetail />} />
           <Route path="/quote" element={<Quote />} />
           <Route path="/design-studio" element={<DesignStudio />} />
+          <Route path="/design-studio-3d" element={<DesignStudio3D />} />
           <Route path="/login" element={<Login />} />
           <Route path="/admin/add-product" element={<RequireRole roles={['product_manager', 'super_admin']}><AddProduct /></RequireRole>} />
           <Route path="/admin/edit-product/:id" element={<RequireRole roles={['product_manager', 'super_admin']}><AddProduct /></RequireRole>} />
