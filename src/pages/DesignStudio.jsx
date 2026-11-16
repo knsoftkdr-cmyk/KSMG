@@ -296,7 +296,7 @@ const orderSum = orderLines.reduce((a, l) => a + l.lineTotal, 0);
           <p className="ds-badge">CONCEPTUAL PREVIEW</p>
           {mode === '3d' && (
             <p className="ds-note small">
-  3D models: "Shirt" by <a href="https://sketchfab.com/eigenscene" target="_blank" rel="noopener noreferrer">eigenscene</a>, "Pants 1" by <a href="https://sketchfab.com/neutralize" target="_blank" rel="noopener noreferrer">neutralize</a> and "Labcoat" by <a href="https://sketchfab.com/Mhanimations" target="_blank" rel="noopener noreferrer">Mhanimations</a>, licensed under <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>.
+   3D models: "Shirt" by <a href="https://sketchfab.com/eigenscene" target="_blank" rel="noopener noreferrer">eigenscene</a>, "Pants 1" by <a href="https://sketchfab.com/neutralize" target="_blank" rel="noopener noreferrer">neutralize</a>, "Labcoat" by <a href="https://sketchfab.com/Mhanimations" target="_blank" rel="noopener noreferrer">Mhanimations</a> and "Scrubs Clothing" (top only, adapted) by <a href="https://sketchfab.com/whitewashstudio" target="_blank" rel="noopener noreferrer">Marc Sawyer</a>, licensed under <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>.
 </p>
           )}
           <ul className="ds-summary">

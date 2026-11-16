@@ -237,6 +237,48 @@ function LabCoatModel({ colour, pattern }) {
     </group>
   );
 }
+
+function ScrubTopModel({ colour, pattern }) {
+  const { scene } = useGLTF('/models/scrubtop/scrubtop.glb');
+  const { model, k, c } = useMemo(() => {
+    const m = scene.clone(true);
+    m.traverse(o => { if (o.isMesh) o.material = o.material.clone(); });
+    const box = new THREE.Box3().setFromObject(m);
+    const size = box.getSize(new THREE.Vector3());
+    const c = box.getCenter(new THREE.Vector3());
+    return { model: m, k: 2.6 / Math.max(size.x, size.y, size.z), c };
+  }, [scene]);
+  useEffect(() => {
+    let tex = null;
+    if (pattern === 'Stripes' || pattern === 'Checks') {
+      const cv = document.createElement('canvas');
+      cv.width = 256; cv.height = 256;
+      const x = cv.getContext('2d');
+      x.fillStyle = colour; x.fillRect(0, 0, 256, 256);
+      x.fillStyle = 'rgba(255,255,255,0.35)';
+      for (let i = 0; i < 256; i += 32) x.fillRect(i, 0, 12, 256);
+      if (pattern === 'Checks') for (let j = 0; j < 256; j += 32) x.fillRect(0, j, 256, 12);
+      tex = new THREE.CanvasTexture(cv);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(8, 8);
+    }
+    model.traverse(o => {
+      if (o.isMesh) {
+        o.material.map = tex;
+        o.material.color.set(tex ? '#ffffff' : colour);
+        o.material.needsUpdate = true;
+      }
+    });
+    return () => { if (tex) tex.dispose(); };
+  }, [model, colour, pattern]);
+  return (
+    <group scale={k}>
+      <primitive object={model} position={[-c.x, -c.y, -c.z]} />
+    </group>
+  );
+}
+
 function CameraRig({ view, controls }) {
   const { camera } = useThree();
   useEffect(() => {
@@ -267,6 +309,8 @@ export default function Garment3D({ garment = 'Shirt', colour, pattern = 'Plain'
     ? <PantsModel colour={colour} pattern={pattern} />
     : garment === 'Lab coat'
       ? <LabCoatModel colour={colour} pattern={pattern} />
+    : garment === 'Scrub top'
+        ? <ScrubTopModel colour={colour} pattern={pattern} />
       : <Garment garment={garment} colour={colour} pattern={pattern} />}
     {garment === 'Shirt' && logoUrl && <LogoPlane url={logoUrl} pos={logoPos} />}
             </Suspense>
