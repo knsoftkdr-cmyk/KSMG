@@ -238,7 +238,7 @@ export default function Garment3D({ garment = 'Shirt', colour, pattern = 'Plain'
           <button key={v} type="button" className={view === v ? 'btn gold' : 'btn ghost'} onClick={() => setView(v)}>{v[0].toUpperCase() + v.slice(1)}</button>
         ))}
       </div>
-      <p className="ds-note small">Drag to rotate, scroll to zoom.</p>
+      <p className="ds-note small">Drag to rotate. Pinch or scroll to zoom.</p>
     </div>
   );
 }
