@@ -254,7 +254,7 @@ export default function DesignStudio() {
           </div>
           {mode === '3d' ? (
             <Suspense fallback={<p className="ds-note small">Loading 3D...</p>}>
-              <Garment3D garment={garment} colour={colour} pattern={pattern} />
+              <Garment3D garment={garment} colour={colour} pattern={pattern} logoUrl={logoOk !== 'bad' ? logoUrl : ''} logoPos={logoPos} />
             </Suspense>
           ) : (
             <svg viewBox="0 0 200 220" role="img" aria-label={`Conceptual preview of a ${colourName} ${garment}`}>

@@ -1,7 +1,8 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { Canvas, useThree } from '@react-three/fiber';
-import { OrbitControls, ContactShadows, useGLTF } from '@react-three/drei';
+// import { OrbitControls, ContactShadows, useGLTF } from '@react-three/drei';
+import { OrbitControls, ContactShadows, useGLTF, useTexture } from '@react-three/drei';
 import { SVGLoader } from 'three/examples/jsm/loaders/SVGLoader.js';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { BODY, garmentSvg } from '../data/garmentArt.js';
@@ -166,6 +167,36 @@ function PantsModel({ colour, pattern }) {
   );
 }
 
+function LogoPlane({ url, pos }) {
+  const tex = useTexture(url);
+  const scene = useThree(s => s.scene);
+  const [place, setPlace] = useState(null);
+  useEffect(() => {
+    tex.colorSpace = THREE.SRGBColorSpace;
+    scene.updateMatrixWorld(true);
+    const rc = new THREE.Raycaster(
+      new THREE.Vector3(0.35 + pos.dx * 0.012, 0.4 - pos.dy * 0.012, 5),
+      new THREE.Vector3(0, 0, -1), 0, 10
+    );
+    const hit = rc.intersectObject(scene, true).find(h => h.object.isMesh && h.face);
+    if (!hit) { setPlace(null); return; }
+    const n = hit.face.normal.clone().transformDirection(hit.object.matrixWorld);
+    if (n.z < 0) n.negate();
+    const p = hit.point.clone().add(n.clone().multiplyScalar(0.01));
+    const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), n);
+    setPlace({ p, q });
+  }, [tex, scene, pos.dx, pos.dy]);
+  if (!place) return null;
+  const img = tex.image;
+  const asp = img && img.width ? img.height / img.width : 1;
+  const w = pos.size * 0.01;
+  return (
+    <mesh position={place.p} quaternion={place.q} raycast={() => null}>
+      <planeGeometry args={[w, w * asp]} />
+      <meshBasicMaterial map={tex} transparent toneMapped={false} polygonOffset polygonOffsetFactor={-4} />
+    </mesh>
+  );
+}
 function CameraRig({ view, controls }) {
   const { camera } = useThree();
   useEffect(() => {
@@ -177,7 +208,7 @@ function CameraRig({ view, controls }) {
   return null;
 }
 
-export default function Garment3D({ garment = 'Shirt', colour, pattern = 'Plain' }) {
+export default function Garment3D({ garment = 'Shirt', colour, pattern = 'Plain', logoUrl = '', logoPos = { dx: 0, dy: 0, size: 32 } }) {
   const [view, setView] = useState('front');
   const controls = useRef();
   return (
@@ -195,6 +226,7 @@ export default function Garment3D({ garment = 'Shirt', colour, pattern = 'Plain'
   : /trouser|pant/i.test(garment)
     ? <PantsModel colour={colour} pattern={pattern} />
     : <Garment garment={garment} colour={colour} pattern={pattern} />}
+    {garment === 'Shirt' && logoUrl && <LogoPlane url={logoUrl} pos={logoPos} />}
             </Suspense>
           <ContactShadows position={[0, -1.25, 0]} opacity={0.35} scale={8} blur={2.5} far={3} />
           <OrbitControls ref={controls} enablePan={false} minDistance={3} maxDistance={10} />
