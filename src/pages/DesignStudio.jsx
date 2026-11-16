@@ -265,6 +265,11 @@ export default function DesignStudio() {
             </svg>
           )}
           <p className="ds-badge">CONCEPTUAL PREVIEW</p>
+          {mode === '3d' && (
+            <p className="ds-note small">
+              3D models: "Shirt" by <a href="https://sketchfab.com/eigenscene" target="_blank" rel="noopener noreferrer">eigenscene</a> and "Pants 1" by <a href="https://sketchfab.com/neutralize" target="_blank" rel="noopener noreferrer">neutralize</a>, licensed under <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>.
+            </p>
+          )}
           <ul className="ds-summary">
             <li>Garment: {garment} ({colourName})</li>
             <li>Fabric: {fabric}</li>
