@@ -167,14 +167,25 @@ const orderSum = orderLines.reduce((a, l) => a + l.lineTotal, 0);
     try { sessionStorage.setItem('ksmg-design', JSON.stringify({ text: fullText, total: order.length > 0 ? orderTotal : total, industry: ind ? ind.name : '' })); } catch { /* ignore */ }
   };
 
-  function onLogo(e) {
-    const f = e.target.files && e.target.files[0];
+ function onLogo(e) {
+    const input = e.target;
+    const f = input.files && input.files[0];
     if (!f) return;
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(f.type)) {
+      setMsg('Please choose a PNG, JPG or WEBP image.');
+      input.value = '';
+      return;
+    }
+    if (f.size > 2 * 1024 * 1024) {
+      setMsg('Logo is too big. Please use an image under 2 MB.');
+      input.value = '';
+      return;
+    }
     if (logoUrl) URL.revokeObjectURL(logoUrl);
     setLogoOk(true);
     setLogoUrl(URL.createObjectURL(f));
-  }
-
+    setMsg('');
+}
   return (
     <section className="ds">
       <div className="ds-head">
