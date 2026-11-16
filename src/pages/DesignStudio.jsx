@@ -127,6 +127,20 @@ export default function DesignStudio() {
   const total = useMemo(() => Object.values(qty).reduce((a, b) => a + (Number(b) || 0), 0), [qty]);
   const colourName = (COLOURS.find(c => c[1] === colour) || ['Custom ' + colour])[0];
   const price = estimate({ garment, fabric, decoration, pattern, total });
+  const [order, setOrder] = useState([]);
+const addToOrder = () => {
+  if (total < 1) return setMsg('Enter sizes and quantities first.');
+  setOrder(o => [...o, { id: Date.now(), garment, colour, colourName, pattern, fabric, decoration, sizes: { ...qty }, total, hasLogo: !!logoUrl }]);
+  setQty(EMPTY_QTY);
+  setMsg(`${garment} added to your order.`);
+};
+const removeFromOrder = id => setOrder(o => o.filter(x => x.id !== id));
+const orderTotal = order.reduce((a, l) => a + l.total, 0);
+const orderLines = order.map(l => {
+  const p = estimate({ garment: l.garment, fabric: l.fabric, decoration: l.decoration, pattern: l.pattern, total: orderTotal });
+  return { ...l, unitNet: p ? p.unitNet : 0, discount: p ? p.discount : 0, lineTotal: p ? p.unitNet * l.total : 0 };
+});
+const orderSum = orderLines.reduce((a, l) => a + l.lineTotal, 0);
   const strokeColour = colour === '#ffffff' ? '#999' : 'rgba(0,0,0,0.35)';
   const [lx, ly] = LOGO_POS[garment];
 
@@ -146,7 +160,11 @@ export default function DesignStudio() {
       `Total quantity: ${total}`,
       price ? `Estimated price (indicative): Rs ${price.unitNet} per piece, about Rs ${price.total} in total` : 'Estimated price: not calculated',
     ].join('\n');
-    try { sessionStorage.setItem('ksmg-design', JSON.stringify({ text, total, industry: ind ? ind.name : '' })); } catch { /* ignore */ }
+    const orderText = orderLines.map((l, i) => `${i + 1}. ${l.garment} | ${l.colourName} | ${l.pattern} | ${l.fabric} | ${l.decoration} | Logo: ${l.hasLogo ? 'yes' : 'none'} | Sizes: ${SIZES.filter(s => l.sizes[s] > 0).map(s => `${s}: ${l.sizes[s]}`).join(', ')} | Qty: ${l.total}${l.unitNet ? ` | about Rs ${l.unitNet} per piece` : ''}`).join('\n');
+    const fullText = order.length > 0
+      ? `Order from Design Studio (conceptual preview, for technical review):\nIndustry: ${ind ? ind.name : industry}\n${orderText}\nTotal quantity: ${orderTotal}\nEstimated total (indicative): Rs ${orderSum}`
+      : text;
+    try { sessionStorage.setItem('ksmg-design', JSON.stringify({ text: fullText, total: order.length > 0 ? orderTotal : total, industry: ind ? ind.name : '' })); } catch { /* ignore */ }
   };
 
   function onLogo(e) {
@@ -286,6 +304,25 @@ export default function DesignStudio() {
               </li>
             )}
           </ul>
+          <button type="button" className="btn ghost" onClick={addToOrder}>Add this garment to order</button>
+{order.length > 0 && (
+  <>
+    <h3>My order ({orderTotal} pieces)</h3>
+    <ul className="ds-list">
+      {orderLines.map(l => (
+        <li key={l.id}>
+          <span>
+            <strong>{l.garment}</strong> ({l.colourName}, {l.pattern}) x {l.total}
+            <br /><small>{SIZES.filter(s => l.sizes[s] > 0).map(s => `${s}: ${l.sizes[s]}`).join(', ')}</small>
+            {l.unitNet > 0 && <><br /><small>₹{l.unitNet.toLocaleString('en-IN')} per piece{l.discount > 0 ? ` (${Math.round(l.discount * 100)}% bulk discount)` : ''}</small></>}
+          </span>
+          <button type="button" className="btn ghost" onClick={() => removeFromOrder(l.id)}>Remove</button>
+        </li>
+      ))}
+    </ul>
+    <p className="ds-note small">Order total about ₹{orderSum.toLocaleString('en-IN')}. Indicative only.</p>
+  </>
+)}
           <Link to="/quote?design=1" onClick={rememberDesign} className="btn gold">Request review and quotation</Link>
           {user ? (
             <div className="ds-save">
