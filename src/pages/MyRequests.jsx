@@ -5,12 +5,13 @@ import { useAuth } from '../services/auth.jsx';
 import PoUpload from '../components/PoUpload.jsx';
 import InvoiceDownloads from '../components/InvoiceDownloads.jsx';
 import FeedbackBox from '../components/FeedbackBox.jsx';
+import { makeQuotePdf } from '../services/quotePdf.js';
             
 import usePageMeta from '../hooks/usePageMeta.js';
 
 const money = n => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-function QuoteBox({ q, isLatest, locked, closed, onDone, onError }) {
+function QuoteBox({ q, enquiry, isLatest, locked, closed, onDone, onError }) {
   const [asking, setAsking] = useState(false);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -55,6 +56,9 @@ function QuoteBox({ q, isLatest, locked, closed, onDone, onError }) {
       {q.validUntil && <p>{expired ? 'Expired on' : 'Valid until'} {q.validUntil}</p>}
       {q.notes && <p>{q.notes}</p>}
       <small>Sent on {new Date(q.sentAt).toLocaleString()}</small>
+      <div className="rfq-actions">
+      <button type="button" className="btn ghost" onClick={() => makeQuotePdf(enquiry, q)}>Download PDF</button>
+    </div>
 
       {q.response === 'accepted' && (
         <p className="quote-reply"><strong>You accepted this quote</strong> on {new Date(q.respondedAt).toLocaleString()}. Our sales team will contact you for the next step.</p>
@@ -252,7 +256,7 @@ export default function MyRequests() {
               </p>
             )}
             {r.quotes.map((q, i) => (
-              <QuoteBox key={q.id} q={q} isLatest={i === 0} locked={locked} closed={closed} onDone={load} onError={setErr} />
+              <QuoteBox key={q.id} q={q} enquiry={{ rfqId: r.rfqId, name: user.email, productName: r.productName, location: r.location }} isLatest={i === 0} locked={locked} closed={closed} onDone={load} onError={setErr} />
             ))}
             {samples.length > 0 && <h3>Sample</h3>}
             {samples.map((s, i) => (

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import usePageMeta from '../hooks/usePageMeta.js';
+import { makeQuotePdf } from '../services/quotePdf.js';
 import { listEnquiries, setEnquiryStatus, listEvents, addNote, listQuotes, addQuote, sendQuote, listSamples, sendSample, listDispatches, addDispatch } from '../services/enquiries.js';
 import PoDownloads from '../components/PoDownloads.jsx';
 import { listFeedback } from '../services/enquiries.js';
@@ -91,6 +92,7 @@ function Quotes({ enquiry, quotes, onAdded, onError }) {
               {' '}+ GST {q.gst}% ({money(tax)}) = <strong>{money(sub + tax)}</strong>
               {q.validUntil && <> | Valid until {q.validUntil}</>}
               {q.notes && <><br />{q.notes}</>}
+              <br /><button type="button" className="btn ghost" onClick={() => makeQuotePdf(enquiry, q)}>Download PDF</button>
               <br /><small>{q.by || 'Unknown'} | {new Date(q.createdAt).toLocaleString()}</small>
               {q.sentAt
                 ? <><br /><small><strong>Sent to customer</strong> | {new Date(q.sentAt).toLocaleString()}</small></>

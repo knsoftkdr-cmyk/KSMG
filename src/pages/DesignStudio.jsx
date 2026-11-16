@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef, lazy, Suspense } from 'react';
+import { estimate } from '../data/pricing.js';
 import { Link } from 'react-router-dom';
 import { INDUSTRIES } from '../data/industries.js';
 import usePageMeta from '../hooks/usePageMeta.js';
@@ -112,6 +113,7 @@ const redo = () => { if (hist.i < hist.list.length - 1) { applySnap(hist.list[hi
 
   const total = useMemo(() => Object.values(qty).reduce((a, b) => a + (Number(b) || 0), 0), [qty]);
   const colourName = (COLOURS.find(c => c[1] === colour) || ['Custom ' + colour])[0];
+  const price = estimate({ garment, fabric, decoration, pattern, total });
   const strokeColour = colour === '#ffffff' ? '#999' : 'rgba(0,0,0,0.35)';
   const [lx, ly] = LOGO_POS[garment];
   
@@ -129,6 +131,7 @@ const redo = () => { if (hist.i < hist.list.length - 1) { applySnap(hist.list[hi
       `Logo: ${logoUrl ? 'yes (will share the file separately)' : 'none'}`,
       `Sizes: ${sizeText}`,
       `Total quantity: ${total}`,
+      price ? `Estimated price (indicative): Rs ${price.unitNet} per piece, about Rs ${price.total} in total` : 'Estimated price: not calculated',
     ].join('\n');
     try { sessionStorage.setItem('ksmg-design', JSON.stringify({ text, total, industry: ind ? ind.name : '' })); } catch { /* ignore */ }
   };
@@ -251,6 +254,14 @@ const redo = () => { if (hist.i < hist.list.length - 1) { applySnap(hist.list[hi
             <li>Decoration: {decoration}</li>
             <li>Logo: {logoUrl ? 'added' : 'none'}</li>
             <li>Total quantity: {total}</li>
+            {price && (
+              <li>
+                Estimated: ₹{price.unitNet.toLocaleString('en-IN')} per piece
+                {price.discount > 0 ? ` (${Math.round(price.discount * 100)}% bulk discount)` : ''}
+                , total about ₹{price.total.toLocaleString('en-IN')}
+                <br /><small>Indicative only. Final price in the quotation.</small>
+              </li>
+            )}
           </ul>
           <Link to="/quote?design=1" onClick={rememberDesign} className="btn gold">Request review and quotation</Link>
                     {user ? (
