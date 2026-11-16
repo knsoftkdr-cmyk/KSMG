@@ -279,24 +279,31 @@ export default function Enquiries() {
         const latest = sentOnes.length ? sentOnes[sentOnes.length - 1] : null;
         return (
           <div key={e.id} className="card">
-            <p className="rfq-id small">{e.rfqId}</p>
-            <h2>{e.name}{e.organisation && `, ${e.organisation}`}</h2>
-            {e.industry && <p>Industry: {e.industry}</p>}
-            <p>{e.email} {e.phone && `| ${e.phone}`}</p>
-            <p>{e.productName || 'No product chosen'}{e.quantity && ` | Qty ${e.quantity}`}</p>
-            {e.location && <p>Delivery: {e.location}{e.neededBy && ` | Needed by ${e.neededBy}`}</p>}
-            <p style={{ whiteSpace: 'pre-line' }}>{e.message}</p>
-            <small>{new Date(e.createdAt).toLocaleString()}</small>
+                        <div className="rq-head">
+              <span className="rfq-id small">{e.rfqId}</span>
+              <h2>{e.name}{e.organisation && `, ${e.organisation}`}</h2>
+              <span className={`status status-${status.replace(' ', '-').toLowerCase()}`}>{status}</span>
+            </div>
+            <p className="rq-sum">{e.productName || 'No product chosen'}{e.quantity && ` | Qty ${e.quantity}`}<br />{e.email}{e.phone && ` | ${e.phone}`}</p>
             {accepted && <p className="quote-reply"><strong>Customer accepted quote v{accepted.version}.</strong></p>}
             {!accepted && latest && latest.response === 'changes_requested' && (
               <p className="quote-reply"><strong>Customer asked for changes on v{latest.version}.</strong> Create a new version and send it.</p>
             )}
             <div className="rfq-actions">
-              <span className={`status status-${status.replace(' ', '-').toLowerCase()}`}>{status}</span>
               <select value={status} onChange={ev => changeStatus(e, ev.target.value)} aria-label="Change status">
                 {STATUSES.map(s => <option key={s}>{s}</option>)}
               </select>
             </div>
+            <details className="rfq-events">
+              <summary>Request details</summary>
+              {e.industry && <p>Industry: {e.industry}</p>}
+              {e.location && <p>Delivery: {e.location}{e.neededBy && ` | Needed by ${e.neededBy}`}</p>}
+              <p style={{ whiteSpace: 'pre-line' }}>{e.message}</p>
+              <small>{new Date(e.createdAt).toLocaleString()}</small>
+            </details>
+
+            <details className="rfq-events rq-manage">
+              <summary>Manage request</summary>
             <Quotes enquiry={e} quotes={mine} onAdded={load} onError={setErr} />
             <Samples enquiry={e} quotes={mine} samples={samples.filter(x => x.enquiryId === e.id)} onAdded={load} onError={setErr} />
             <PoDownloads enquiryId={e.id} />
@@ -308,6 +315,7 @@ export default function Enquiries() {
               <p key={f.createdAt} className="quote-reply"><strong>Customer feedback: {f.rating} / 5</strong>{f.comment && <> | {f.comment}</>}</p>
             ))}
             <Notes enquiryId={e.id} events={events.filter(x => x.enquiryId === e.id)} onAdded={load} onError={setErr} />
+            </details>
           </div>
         );
       })}

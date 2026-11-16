@@ -54,10 +54,16 @@ export default function IndustryDetail() {
       </section>
       {products.length > 0 && (
         <section className="wrap alt">
-          <h2>Featured products</h2>
-          <div className="grid">
-            {products.slice(0, 4).map(p => (
-              <Link key={p.id} to={`/products/${p.id}`} className="card prod"><Photo blob={p.photos[0]} alt={p.name} /><h3>{p.name}{p.sample && <span className="tag">Sample</span>}</h3></Link>
+          <h2>Our products</h2>
+          <div className="pc-grid">
+            {products.map(p => (
+              <Link key={p.id} to={`/products/${p.id}`} className="pc-card">
+                <div className="pc-img"><Photo blob={p.photos[0]} alt={p.name} /></div>
+                <div className="pc-foot">
+                  <span className="pc-ico"><IndIcon name={slug === 'food-agri' ? 'food' : slug} /></span>
+                  <span className="pc-name">{p.name}{p.sample && <span className="tag">Sample</span>}</span>
+                </div>
+              </Link>
             ))}
           </div>
         </section>

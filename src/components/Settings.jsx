@@ -1,39 +1,34 @@
 import { useEffect, useState } from 'react';
-const KEY = 'ksmg-settings', DEFAULTS = { theme: 'system', motion: true };
-export const loadSettings = () => { try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY)) }; } catch { return DEFAULTS; } };
+const KEY = 'ksmg-theme';
+export const loadSettings = () => {
+  try { return { theme: localStorage.getItem(KEY) === 'dark' ? 'dark' : 'light', motion: true }; }
+  catch { return { theme: 'light', motion: true }; }
+};
 export function applySettings(s) {
   const d = document.documentElement;
-  const dark = s.theme === 'dark' || (s.theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
-  d.dataset.theme = dark ? 'dark' : 'light';
-  d.dataset.motion = s.motion ? 'on' : 'off';
+  d.dataset.theme = s.theme === 'dark' ? 'dark' : 'light';
+  d.dataset.motion = 'on';
 }
 export default function Settings() {
-  const [open, setOpen] = useState(false);
   const [s, setS] = useState(loadSettings);
   useEffect(() => {
-    applySettings(s); localStorage.setItem(KEY, JSON.stringify(s));
-    const mq = matchMedia('(prefers-color-scheme: dark)'), fn = () => applySettings(s);
-    mq.addEventListener('change', fn); return () => mq.removeEventListener('change', fn);
+    applySettings(s);
+    try { localStorage.setItem(KEY, s.theme); } catch { /* ignore */ }
   }, [s]);
-  useEffect(() => {
-    if (!open) return;
-    const close = () => setOpen(false);
-    document.addEventListener('click', close);
-    return () => document.removeEventListener('click', close);
-  }, [open]);
+  const dark = s.theme === 'dark';
   return (
-    <div className="settings" onClick={e => e.stopPropagation()}>
-      <button className="btn ghost sbtn" aria-expanded={open} onClick={() => setOpen(!open)}>Settings</button>
-      {open && (
-        <div className="panel" role="dialog" aria-label="Settings">
-          <fieldset><legend>Theme</legend>
-            {['system', 'light', 'dark'].map(t => (
-              <label key={t} className="opt"><input type="radio" name="theme" checked={s.theme === t} onChange={() => setS({ ...s, theme: t })} />{t[0].toUpperCase() + t.slice(1)}</label>
-            ))}
-          </fieldset>
-          <label className="opt"><input type="checkbox" checked={s.motion} onChange={e => setS({ ...s, motion: e.target.checked })} />Animations</label>
-        </div>
+    <button
+      type="button"
+      className="theme-toggle"
+      aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
+      title={dark ? 'Light theme' : 'Dark theme'}
+      onClick={() => setS({ ...s, theme: dark ? 'light' : 'dark' })}
+    >
+      {dark ? (
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" /></svg>
+      ) : (
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>
       )}
-    </div>
+    </button>
   );
 }

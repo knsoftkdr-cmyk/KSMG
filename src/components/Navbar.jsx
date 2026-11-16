@@ -44,7 +44,7 @@ export default function Navbar() {
             <Link to="/industries" className="mega-all">View all industries</Link>
           </div>
         </div>
-                <div className={megaP ? 'mega open' : 'mega'}>
+          <div className={megaP ? 'mega open' : 'mega'} onMouseLeave={() => setMegaP(false)}>
           <NavLink to="/products">Products</NavLink>
           <button
             type="button"
