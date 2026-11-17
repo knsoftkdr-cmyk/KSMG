@@ -7,6 +7,7 @@ import { listDesigns, saveDesign, deleteDesign, updateDesign, listVersions } fro
 import { estimate, setRates } from '../data/pricing.js';
 import { getSetting } from '../services/settings.js';
 import GarmentArt from '../components/GarmentArt.jsx';
+import SizeAdvisor from '../components/SizeAdvisor.jsx';
 const Garment3D = lazy(() => import('../components/Garment3D.jsx'));
 const GARMENTS = ['Shirt', 'Trousers', 'Apron', 'Skirt', 'Pinafore', 'Blazer', 'Scrub top', 'Lab coat', 'Chef coat', 'Salon wear', 'Coverall', 'Hi-vis jacket', 'Gown'];
 const FABRICS = ['Cotton', 'Poly-cotton blend', 'Polyester', 'To be advised by sales team'];
@@ -296,7 +297,7 @@ const orderSum = orderLines.reduce((a, l) => a + l.lineTotal, 0);
           <p className="ds-badge">CONCEPTUAL PREVIEW</p>
           {mode === '3d' && (
             <p className="ds-note small">
-                3D models: "Shirt" by <a href="https://sketchfab.com/eigenscene" target="_blank" rel="noopener noreferrer">eigenscene</a>, "Pants 1" by <a href="https://sketchfab.com/neutralize" target="_blank" rel="noopener noreferrer">neutralize</a>, "Labcoat" by <a href="https://sketchfab.com/Mhanimations" target="_blank" rel="noopener noreferrer">Mhanimations</a>, "Scrubs Clothing" (top only, adapted) by <a href="https://sketchfab.com/whitewashstudio" target="_blank" rel="noopener noreferrer">Marc Sawyer</a>, "Apron" by <a href="https://sketchfab.com/kurmanin" target="_blank" rel="noopener noreferrer">Alexander Kurmanin</a>, "Pink Gingham Circle Skirt" (adapted) by <a href="https://sketchfab.com/digitaldressmaker" target="_blank" rel="noopener noreferrer">Digital Dressmaker</a>, "Pinafore dress for kids" (adapted) by <a href="https://sketchfab.com/mariia89" target="_blank" rel="noopener noreferrer">Mariia Moskvina</a> and "Double-Breasted Formal Blazer" (adapted) by <a href="https://sketchfab.com/sathwik.sai24" target="_blank" rel="noopener noreferrer">SathwikBannu</a>, licensed under <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>.
+                3D models: "Shirt" by <a href="https://sketchfab.com/eigenscene" target="_blank" rel="noopener noreferrer">eigenscene</a>, "Pants 1" by <a href="https://sketchfab.com/neutralize" target="_blank" rel="noopener noreferrer">neutralize</a>, "Labcoat" by <a href="https://sketchfab.com/Mhanimations" target="_blank" rel="noopener noreferrer">Mhanimations</a>, "Scrubs Clothing" (top only, adapted) by <a href="https://sketchfab.com/whitewashstudio" target="_blank" rel="noopener noreferrer">Marc Sawyer</a>, "Apron" by <a href="https://sketchfab.com/kurmanin" target="_blank" rel="noopener noreferrer">Alexander Kurmanin</a>, "Pink Gingham Circle Skirt" (adapted) by <a href="https://sketchfab.com/digitaldressmaker" target="_blank" rel="noopener noreferrer">Digital Dressmaker</a>, "Pinafore dress for kids" (adapted) by <a href="https://sketchfab.com/mariia89" target="_blank" rel="noopener noreferrer">Mariia Moskvina</a>, "Double-Breasted Formal Blazer" (adapted) by <a href="https://sketchfab.com/sathwik.sai24" target="_blank" rel="noopener noreferrer">SathwikBannu</a> "The White Coat Chef" (coat only, adapted) by <a href="https://sketchfab.com/restore50" target="_blank" rel="noopener noreferrer">restore50</a> and "high_visibilty_vest_1" (adapted) by <a href="https://sketchfab.com/ap-school" target="_blank" rel="noopener noreferrer">ap-school</a>, licensed under <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>.
             </p>
           )}
           <ul className="ds-summary">
@@ -334,6 +335,7 @@ const orderSum = orderLines.reduce((a, l) => a + l.lineTotal, 0);
     <p className="ds-note small">Order total about ₹{orderSum.toLocaleString('en-IN')}. Indicative only.</p>
   </>
 )}
+          <SizeAdvisor />
           <Link to="/quote?design=1" onClick={rememberDesign} className="btn gold">Request review and quotation</Link>
           {user ? (
             <div className="ds-save">

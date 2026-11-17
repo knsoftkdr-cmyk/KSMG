@@ -66,7 +66,7 @@ function Garment({ garment, colour, pattern }) {
       x.fillStyle = overlay;
       if (pattern === 'Stripes' || pattern === 'Checks') for (let i = 0; i < 1000; i += 80) x.fillRect(1000 + i, 0, 40, 1100);
       if (pattern === 'Checks') for (let j = 0; j < 1100; j += 80) x.fillRect(1000, j, 1000, 40);
-     
+
       t = new THREE.CanvasTexture(c);
       t.colorSpace = THREE.SRGBColorSpace;
       t.anisotropy = 8;
@@ -84,6 +84,7 @@ function Garment({ garment, colour, pattern }) {
     </mesh>
   );
 }
+
 function ShirtModel({ colour, pattern }) {
   const { scene } = useGLTF('/models/shirt/scene.gltf');
   const { model, k, c } = useMemo(() => {
@@ -97,23 +98,22 @@ function ShirtModel({ colour, pattern }) {
   useEffect(() => {
     let stripeTex = null;
     if (pattern === 'Stripes' || pattern === 'Checks') {
-  const cv = document.createElement('canvas');
-  cv.width = 256; cv.height = 256;
-  const x = cv.getContext('2d');
-  x.fillStyle = colour; x.fillRect(0, 0, 256, 256);
-  x.fillStyle = 'rgba(255,255,255,0.35)';
-  for (let i = 0; i < 256; i += 32) x.fillRect(i, 0, 12, 256);
-  if (pattern === 'Checks') for (let j = 0; j < 256; j += 32) x.fillRect(0, j, 256, 12);
-  stripeTex = new THREE.CanvasTexture(cv);
-  stripeTex.colorSpace = THREE.SRGBColorSpace;
-  stripeTex.wrapS = stripeTex.wrapT = THREE.RepeatWrapping;
-  stripeTex.repeat.set(4, 4);
-}
+      const cv = document.createElement('canvas');
+      cv.width = 256; cv.height = 256;
+      const x = cv.getContext('2d');
+      x.fillStyle = colour; x.fillRect(0, 0, 256, 256);
+      x.fillStyle = 'rgba(255,255,255,0.35)';
+      for (let i = 0; i < 256; i += 32) x.fillRect(i, 0, 12, 256);
+      if (pattern === 'Checks') for (let j = 0; j < 256; j += 32) x.fillRect(0, j, 256, 12);
+      stripeTex = new THREE.CanvasTexture(cv);
+      stripeTex.colorSpace = THREE.SRGBColorSpace;
+      stripeTex.wrapS = stripeTex.wrapT = THREE.RepeatWrapping;
+      stripeTex.repeat.set(14, 14);
+    }
     model.traverse(o => {
       if (o.isMesh && o.material.name.includes('Material4782')) {
         const m = o.material;
         if (pattern === 'Checks' || pattern === 'Stripes') { m.map = stripeTex; m.color.set('#ffffff'); }
-        // else if (pattern === 'Stripes') { m.map = stripeTex; m.color.set('#ffffff'); }
         else { m.map = null; m.color.set(colour); }
         m.needsUpdate = true;
       }
@@ -126,6 +126,7 @@ function ShirtModel({ colour, pattern }) {
     </group>
   );
 }
+
 function PantsModel({ colour, pattern }) {
   const { scene } = useGLTF('/models/pants/scene.gltf');
   const { model, k, c } = useMemo(() => {
@@ -197,6 +198,7 @@ function LogoPlane({ url, pos }) {
     </mesh>
   );
 }
+
 function LabCoatModel({ colour, pattern }) {
   const { scene } = useGLTF('/models/labcoat/scene.gltf');
   const { model, k, c } = useMemo(() => {
@@ -427,7 +429,7 @@ function BlazerModel({ colour, pattern }) {
       tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
       tex.repeat.set(6, 6);
     }
-      model.traverse(o => {
+    model.traverse(o => {
       if (o.isMesh && o.material.name !== 'buttons') {
         o.material.map = tex;
         o.material.color.set(tex ? '#ffffff' : colour);
@@ -456,6 +458,102 @@ function ShadowRig() {
   });
   return null;
 }
+
+function ChefCoatModel({ colour, pattern }) {
+  const { scene } = useGLTF('/models/chefcoat/chefcoat.glb');
+  const { model, k, c } = useMemo(() => {
+    const m = scene.clone(true);
+    m.traverse(o => { if (o.isMesh) o.material = o.material.clone(); });
+    const box = new THREE.Box3().setFromObject(m);
+    const size = box.getSize(new THREE.Vector3());
+    const c = box.getCenter(new THREE.Vector3());
+    return { model: m, k: 2.6 / Math.max(size.x, size.y, size.z), c };
+  }, [scene]);
+  useEffect(() => {
+    let tex = null;
+    if (pattern === 'Stripes' || pattern === 'Checks') {
+      const cv = document.createElement('canvas');
+      cv.width = 256; cv.height = 256;
+      const x = cv.getContext('2d');
+      x.fillStyle = colour; x.fillRect(0, 0, 256, 256);
+      x.fillStyle = 'rgba(255,255,255,0.35)';
+      for (let i = 0; i < 256; i += 32) x.fillRect(i, 0, 12, 256);
+      if (pattern === 'Checks') for (let j = 0; j < 256; j += 32) x.fillRect(0, j, 256, 12);
+      tex = new THREE.CanvasTexture(cv);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(6, 6);
+    }
+    model.traverse(o => {
+      if (o.isMesh) {
+        o.material.map = tex;
+        o.material.color.set(tex ? '#ffffff' : colour);
+        o.material.needsUpdate = true;
+      }
+    });
+    return () => { if (tex) tex.dispose(); };
+  }, [model, colour, pattern]);
+  return (
+    <group scale={k}>
+      <primitive object={model} position={[-c.x, -c.y, -c.z]} />
+    </group>
+  );
+}
+
+function HiVisModel({ colour }) {
+  const { scene } = useGLTF('/models/hivis/hivis.glb');
+  const { model, k, c } = useMemo(() => {
+    const m = scene.clone(true);
+    m.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.userData.orig = o.material.map; } });
+    const box = new THREE.Box3().setFromObject(m);
+    const size = box.getSize(new THREE.Vector3());
+    const c = box.getCenter(new THREE.Vector3());
+    return { model: m, k: 2.6 / Math.max(size.x, size.y, size.z), c };
+  }, [scene]);
+  useEffect(() => {
+    let tex = null;
+    const col = new THREE.Color(colour);
+    const R = col.r * 255, G = col.g * 255, B = col.b * 255;
+    model.traverse(o => {
+      if (!o.isMesh) return;
+      const orig = o.material.userData.orig;
+      const img = orig && orig.image;
+      if (!img || !img.width) return;
+      try {
+        const cv = document.createElement('canvas');
+        cv.width = img.width; cv.height = img.height;
+        const x = cv.getContext('2d', { willReadFrequently: true });
+        x.drawImage(img, 0, 0);
+        const d = x.getImageData(0, 0, cv.width, cv.height);
+        const p = d.data;
+        for (let i = 0; i < p.length; i += 4) {
+          const mx = Math.max(p[i], p[i + 1], p[i + 2]);
+          const mn = Math.min(p[i], p[i + 1], p[i + 2]);
+          const s = mx === 0 ? 0 : (mx - mn) / mx;
+          if (s > 0.45) {
+            const v = mx / 255; // fabric only; silver stripes stay as they are
+            p[i] = R * v; p[i + 1] = G * v; p[i + 2] = B * v;
+          }
+        }
+        x.putImageData(d, 0, 0);
+        tex = new THREE.CanvasTexture(cv);
+        tex.flipY = false;
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.anisotropy = 8;
+        o.material.map = tex;
+        o.material.color.set('#ffffff');
+        o.material.needsUpdate = true;
+      } catch (e) { console.warn('hivis recolour failed', e); }
+    });
+    return () => { if (tex) tex.dispose(); };
+  }, [model, colour]);
+  return (
+    <group scale={k}>
+      <primitive object={model} position={[-c.x, -c.y, -c.z]} />
+    </group>
+  );
+}
+
 function CameraRig({ view, controls }) {
   const { camera } = useThree();
   useEffect(() => {
@@ -476,33 +574,37 @@ export default function Garment3D({ garment = 'Shirt', colour, pattern = 'Plain'
         <Canvas shadows camera={{ position: [0, 0.3, 6], fov: 40 }} dpr={[1, 2]}>
           <hemisphereLight args={['#ffffff', '#9aa3c0', 1.2]} />
           <ambientLight intensity={1.0} />
-                    <directionalLight position={[4, 6, 5]} intensity={1.4} castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.0004} shadow-normalBias={0.02} shadow-camera-left={-3} shadow-camera-right={3} shadow-camera-top={3} shadow-camera-bottom={-3} shadow-camera-near={1} shadow-camera-far={20} />
+          <directionalLight position={[4, 6, 5]} intensity={1.4} castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.0004} shadow-normalBias={0.02} shadow-camera-left={-3} shadow-camera-right={3} shadow-camera-top={3} shadow-camera-bottom={-3} shadow-camera-near={1} shadow-camera-far={20} />
           <directionalLight position={[-4, 3, 4]} intensity={0.9} />
           <directionalLight position={[0, 3, -6]} intensity={0.8} />
           <Suspense fallback={null}>
             {garment === 'Shirt'
-  ? <ShirtModel colour={colour} pattern={pattern} />
-  : /trouser|pant/i.test(garment)
-    ? <PantsModel colour={colour} pattern={pattern} />
-    : garment === 'Lab coat'
-      ? <LabCoatModel colour={colour} pattern={pattern} />
-    : garment === 'Scrub top'
-        ? <ScrubTopModel colour={colour} pattern={pattern} />
-        : garment === 'Apron'
-          ? <ApronModel colour={colour} pattern={pattern} />
-        : garment === 'Skirt'
-            ? <SkirtModel colour={colour} pattern={pattern} />
-        : garment === 'Pinafore'
-              ? <PinaforeModel colour={colour} pattern={pattern} />
-        : garment === 'Blazer'
-                ? <BlazerModel colour={colour} pattern={pattern} />
-      : <Garment garment={garment} colour={colour} pattern={pattern} />}
-    {garment === 'Shirt' && logoUrl && <LogoPlane url={logoUrl} pos={logoPos} />}
-            </Suspense>
+              ? <ShirtModel colour={colour} pattern={pattern} />
+              : /trouser|pant/i.test(garment)
+                ? <PantsModel colour={colour} pattern={pattern} />
+                : garment === 'Lab coat'
+                  ? <LabCoatModel colour={colour} pattern={pattern} />
+                  : (garment === 'Scrub top' || garment === 'Salon wear')
+                    ? <ScrubTopModel colour={colour} pattern={pattern} />
+                    : garment === 'Apron'
+                      ? <ApronModel colour={colour} pattern={pattern} />
+                      : garment === 'Skirt'
+                        ? <SkirtModel colour={colour} pattern={pattern} />
+                        : garment === 'Pinafore'
+                          ? <PinaforeModel colour={colour} pattern={pattern} />
+                          : garment === 'Blazer'
+                            ? <BlazerModel colour={colour} pattern={pattern} />
+                            : garment === 'Chef coat'
+                              ? <ChefCoatModel colour={colour} pattern={pattern} />
+                              : garment === 'Hi-vis jacket'
+                                ? <HiVisModel colour={colour} />
+                                : <Garment garment={garment} colour={colour} pattern={pattern} />}
+            {garment === 'Shirt' && logoUrl && <LogoPlane url={logoUrl} pos={logoPos} />}
+          </Suspense>
           <ContactShadows position={[0, -1.25, 0]} opacity={0.35} scale={8} blur={2.5} far={3} />
           <OrbitControls ref={controls} enablePan={false} minDistance={3} maxDistance={10} />
           <CameraRig view={view} controls={controls} />
-            <ShadowRig />
+          <ShadowRig />
         </Canvas>
       </div>
       <div className="ds-mode">

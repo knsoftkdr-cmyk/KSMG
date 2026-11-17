@@ -1,0 +1,11 @@
+Model Information:
+* title:	The White Coat Chef
+* source:	https://sketchfab.com/3d-models/the-white-coat-chef-cf7634c9b86049fc857079975bf1e909
+* author:	restore50 (https://sketchfab.com/restore50)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "The White Coat Chef" (https://sketchfab.com/3d-models/the-white-coat-chef-cf7634c9b86049fc857079975bf1e909) by restore50 (https://sketchfab.com/restore50) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
