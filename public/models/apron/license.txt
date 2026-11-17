@@ -1,0 +1,11 @@
+Model Information:
+* title:	Apron
+* source:	https://sketchfab.com/3d-models/apron-5b59f689e825446d8a8f4b77d47a6b18
+* author:	Alexander Kurmanin (https://sketchfab.com/kurmanin)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Apron" (https://sketchfab.com/3d-models/apron-5b59f689e825446d8a8f4b77d47a6b18) by Alexander Kurmanin (https://sketchfab.com/kurmanin) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

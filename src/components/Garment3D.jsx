@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { Canvas, useThree } from '@react-three/fiber';
+import { Canvas, useThree, useFrame } from '@react-three/fiber';
 // import { OrbitControls, ContactShadows, useGLTF } from '@react-three/drei';
 import { OrbitControls, ContactShadows, useGLTF, useTexture } from '@react-three/drei';
 import { SVGLoader } from 'three/examples/jsm/loaders/SVGLoader.js';
@@ -279,6 +279,183 @@ function ScrubTopModel({ colour, pattern }) {
   );
 }
 
+function ApronModel({ colour, pattern }) {
+  const { scene } = useGLTF('/models/apron/scene.gltf');
+  const { model, k, c } = useMemo(() => {
+    const m = scene.clone(true);
+    m.traverse(o => { if (o.isMesh) o.material = o.material.clone(); });
+    const box = new THREE.Box3().setFromObject(m);
+    const size = box.getSize(new THREE.Vector3());
+    const c = box.getCenter(new THREE.Vector3());
+    return { model: m, k: 2.6 / Math.max(size.x, size.y, size.z), c };
+  }, [scene]);
+  useEffect(() => {
+    let tex = null;
+    if (pattern === 'Stripes' || pattern === 'Checks') {
+      const cv = document.createElement('canvas');
+      cv.width = 256; cv.height = 256;
+      const x = cv.getContext('2d');
+      x.fillStyle = colour; x.fillRect(0, 0, 256, 256);
+      x.fillStyle = 'rgba(255,255,255,0.35)';
+      for (let i = 0; i < 256; i += 32) x.fillRect(i, 0, 12, 256);
+      if (pattern === 'Checks') for (let j = 0; j < 256; j += 32) x.fillRect(0, j, 256, 12);
+      tex = new THREE.CanvasTexture(cv);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(6, 6);
+    }
+    model.traverse(o => {
+      if (o.isMesh) {
+        o.material.map = tex;
+        o.material.color.set(tex ? '#ffffff' : colour);
+        o.material.needsUpdate = true;
+      }
+    });
+    return () => { if (tex) tex.dispose(); };
+  }, [model, colour, pattern]);
+  return (
+    <group scale={k}>
+      <primitive object={model} position={[-c.x, -c.y, -c.z]} />
+    </group>
+  );
+}
+
+function SkirtModel({ colour, pattern }) {
+  const { scene } = useGLTF('/models/skirt/skirt.glb');
+  const { model, k, c } = useMemo(() => {
+    const m = scene.clone(true);
+    m.traverse(o => { if (o.isMesh) o.material = o.material.clone(); });
+    const box = new THREE.Box3().setFromObject(m);
+    const size = box.getSize(new THREE.Vector3());
+    const c = box.getCenter(new THREE.Vector3());
+    return { model: m, k: 2.6 / Math.max(size.x, size.y, size.z), c };
+  }, [scene]);
+  useEffect(() => {
+    let tex = null;
+    if (pattern === 'Stripes' || pattern === 'Checks') {
+      const cv = document.createElement('canvas');
+      cv.width = 256; cv.height = 256;
+      const x = cv.getContext('2d');
+      x.fillStyle = colour; x.fillRect(0, 0, 256, 256);
+      x.fillStyle = 'rgba(255,255,255,0.35)';
+      for (let i = 0; i < 256; i += 32) x.fillRect(i, 0, 12, 256);
+      if (pattern === 'Checks') for (let j = 0; j < 256; j += 32) x.fillRect(0, j, 256, 12);
+      tex = new THREE.CanvasTexture(cv);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(1, 1);
+    }
+    model.traverse(o => {
+      if (o.isMesh) {
+        o.material.map = tex;
+        o.material.color.set(tex ? '#ffffff' : colour);
+        o.material.needsUpdate = true;
+      }
+    });
+    return () => { if (tex) tex.dispose(); };
+  }, [model, colour, pattern]);
+  return (
+    <group scale={k}>
+      <primitive object={model} position={[-c.x, -c.y, -c.z]} />
+    </group>
+  );
+}
+
+function PinaforeModel({ colour, pattern }) {
+  const { scene } = useGLTF('/models/pinafore/pinafore.glb');
+  const { model, k, c } = useMemo(() => {
+    const m = scene.clone(true);
+    m.traverse(o => { if (o.isMesh) o.material = o.material.clone(); });
+    const box = new THREE.Box3().setFromObject(m);
+    const size = box.getSize(new THREE.Vector3());
+    const c = box.getCenter(new THREE.Vector3());
+    return { model: m, k: 2.6 / Math.max(size.x, size.y, size.z), c };
+  }, [scene]);
+  useEffect(() => {
+    let tex = null;
+    if (pattern === 'Stripes' || pattern === 'Checks') {
+      const cv = document.createElement('canvas');
+      cv.width = 256; cv.height = 256;
+      const x = cv.getContext('2d');
+      x.fillStyle = colour; x.fillRect(0, 0, 256, 256);
+      x.fillStyle = 'rgba(255,255,255,0.35)';
+      for (let i = 0; i < 256; i += 32) x.fillRect(i, 0, 12, 256);
+      if (pattern === 'Checks') for (let j = 0; j < 256; j += 32) x.fillRect(0, j, 256, 12);
+      tex = new THREE.CanvasTexture(cv);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(3, 3);
+    }
+    model.traverse(o => {
+      if (o.isMesh) {
+        o.material.map = tex;
+        o.material.color.set(tex ? '#ffffff' : colour);
+        o.material.needsUpdate = true;
+      }
+    });
+    return () => { if (tex) tex.dispose(); };
+  }, [model, colour, pattern]);
+  return (
+    <group scale={k}>
+      <primitive object={model} position={[-c.x, -c.y, -c.z]} />
+    </group>
+  );
+}
+
+function BlazerModel({ colour, pattern }) {
+  const { scene } = useGLTF('/models/blazer/blazer.glb');
+  const { model, k, c } = useMemo(() => {
+    const m = scene.clone(true);
+    m.traverse(o => { if (o.isMesh) o.material = o.material.clone(); });
+    const box = new THREE.Box3().setFromObject(m);
+    const size = box.getSize(new THREE.Vector3());
+    const c = box.getCenter(new THREE.Vector3());
+    return { model: m, k: 2.6 / Math.max(size.x, size.y, size.z), c };
+  }, [scene]);
+  useEffect(() => {
+    let tex = null;
+    if (pattern === 'Stripes' || pattern === 'Checks') {
+      const cv = document.createElement('canvas');
+      cv.width = 256; cv.height = 256;
+      const x = cv.getContext('2d');
+      x.fillStyle = colour; x.fillRect(0, 0, 256, 256);
+      x.fillStyle = 'rgba(255,255,255,0.35)';
+      for (let i = 0; i < 256; i += 32) x.fillRect(i, 0, 12, 256);
+      if (pattern === 'Checks') for (let j = 0; j < 256; j += 32) x.fillRect(0, j, 256, 12);
+      tex = new THREE.CanvasTexture(cv);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(6, 6);
+    }
+      model.traverse(o => {
+      if (o.isMesh && o.material.name !== 'buttons') {
+        o.material.map = tex;
+        o.material.color.set(tex ? '#ffffff' : colour);
+        o.material.needsUpdate = true;
+      }
+    });
+    return () => { if (tex) tex.dispose(); };
+  }, [model, colour, pattern]);
+  return (
+    <group scale={k}>
+      <primitive object={model} position={[-c.x, -c.y, -c.z]} />
+    </group>
+  );
+}
+
+function ShadowRig() {
+  const scene = useThree(s => s.scene);
+  useFrame(() => {
+    scene.traverse(o => {
+      if (o.isMesh && !o.userData.shadowSet && o.material && !o.material.transparent) {
+        o.castShadow = true;
+        o.receiveShadow = true;
+        o.userData.shadowSet = true;
+      }
+    });
+  });
+  return null;
+}
 function CameraRig({ view, controls }) {
   const { camera } = useThree();
   useEffect(() => {
@@ -296,10 +473,10 @@ export default function Garment3D({ garment = 'Shirt', colour, pattern = 'Plain'
   return (
     <div>
       <div className="g3d">
-        <Canvas camera={{ position: [0, 0.3, 6], fov: 40 }} dpr={[1, 2]}>
+        <Canvas shadows camera={{ position: [0, 0.3, 6], fov: 40 }} dpr={[1, 2]}>
           <hemisphereLight args={['#ffffff', '#9aa3c0', 1.2]} />
           <ambientLight intensity={1.0} />
-          <directionalLight position={[4, 6, 5]} intensity={1.4} />
+                    <directionalLight position={[4, 6, 5]} intensity={1.4} castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.0004} shadow-normalBias={0.02} shadow-camera-left={-3} shadow-camera-right={3} shadow-camera-top={3} shadow-camera-bottom={-3} shadow-camera-near={1} shadow-camera-far={20} />
           <directionalLight position={[-4, 3, 4]} intensity={0.9} />
           <directionalLight position={[0, 3, -6]} intensity={0.8} />
           <Suspense fallback={null}>
@@ -311,12 +488,21 @@ export default function Garment3D({ garment = 'Shirt', colour, pattern = 'Plain'
       ? <LabCoatModel colour={colour} pattern={pattern} />
     : garment === 'Scrub top'
         ? <ScrubTopModel colour={colour} pattern={pattern} />
+        : garment === 'Apron'
+          ? <ApronModel colour={colour} pattern={pattern} />
+        : garment === 'Skirt'
+            ? <SkirtModel colour={colour} pattern={pattern} />
+        : garment === 'Pinafore'
+              ? <PinaforeModel colour={colour} pattern={pattern} />
+        : garment === 'Blazer'
+                ? <BlazerModel colour={colour} pattern={pattern} />
       : <Garment garment={garment} colour={colour} pattern={pattern} />}
     {garment === 'Shirt' && logoUrl && <LogoPlane url={logoUrl} pos={logoPos} />}
             </Suspense>
           <ContactShadows position={[0, -1.25, 0]} opacity={0.35} scale={8} blur={2.5} far={3} />
           <OrbitControls ref={controls} enablePan={false} minDistance={3} maxDistance={10} />
           <CameraRig view={view} controls={controls} />
+            <ShadowRig />
         </Canvas>
       </div>
       <div className="ds-mode">
