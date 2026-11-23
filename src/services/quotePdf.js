@@ -11,7 +11,7 @@ export function makeQuotePdf(enquiry, q) {
   doc.setFont('helvetica', 'bold'); doc.setFontSize(18);
   doc.text('KSMG Global Private Limited', L, y);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
-  y += 6; doc.text('Uniforms and workwear | Boduppal and Kondapur, Hyderabad', L, y);
+  y += 6; doc.text('Uniforms and workwear | Uppal and Kondapur, Hyderabad', L, y);
   y += 5; doc.text('Phone: +91 98-9628 9628 | Email: info@ksmgtextiles.com', L, y);
   y += 4; doc.setDrawColor(10, 19, 48); doc.setLineWidth(0.6); doc.line(L, y, R, y);
 

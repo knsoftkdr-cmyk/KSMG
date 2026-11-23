@@ -1,4 +1,6 @@
-import { Routes, Route } from 'react-router-dom';
+
+import { useEffect, useRef } from 'react';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar.jsx';
 import Footer from './components/Footer.jsx';
 import Home from './pages/Home.jsx';
@@ -18,11 +20,21 @@ import Staff from './pages/Staff.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Pricing from './pages/Pricing.jsx';
 import MyRequests from './pages/MyRequests.jsx';
+import Credits from './pages/Credits.jsx';
+import Brochure from './pages/Brochure.jsx';
+import Catalogue from './pages/Catalogue.jsx';
+import CatalogueSector from './pages/CatalogueSector.jsx';
 import RequireRole from './components/RequireRole.jsx';
 import { CONTENT } from './data/content.js';
 
 // App only wires routes. Add a new page = new file in pages/ + one line here.
 export default function App() {
+  const { pathname } = useLocation();
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) { first.current = false; return; }
+    document.getElementById('main')?.focus({ preventScroll: true });
+  }, [pathname]);
   return (
     <>
        <a href="#main" className="skip" onClick={e => { e.preventDefault(); document.getElementById('main')?.focus(); }}>Skip to main content</a>
@@ -46,6 +58,14 @@ export default function App() {
           <Route path="/admin/pricing" element={<RequireRole roles={['product_manager', 'super_admin']}><Pricing /></RequireRole>} />
           <Route path="/admin/staff" element={<RequireRole roles={['super_admin']}><Staff /></RequireRole>} />
           <Route path="/my-requests" element={<MyRequests />} />
+          <Route path="/credits" element={<Credits />} />
+          <Route path="/brochure" element={<Brochure />} />
+          <Route path="/catalogue" element={<Catalogue />} />
+          <Route path="/catalogue/:slug" element={<CatalogueSector />} />
+          <Route path="/credits" element={<Credits />} />
+          <Route path="/credits" element={<Credits />} />
+          <Route path="/credits" element={<Credits />} />
+          <Route path="/credits" element={<Credits />} />
           <Route path="/contact" element={<Info kind="contact" />} />
           <Route path="*" element={<Info kind="404" />} />
         </Routes>

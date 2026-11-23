@@ -5,7 +5,7 @@ export const COMPANY = {
   brand: 'Prasanna Reddy Garments',
   legalName: 'KSMG Global Private Limited',
   about: '',
-  address:'H.No 8-43/37/6/C, Sai Bhavani Nagar, Boduppal, Near Substation, East Balaji Hills, Medchal-Malkajgiri District, Telangana - 500039',
+  address:'H. No. 13-106, Sri Sri Nagar Colony, Near HUDA Park, Uppal, Hyderabad, Telangana – 500039, India.',
   phone: '',
   email: '',
   whatsapp: '',

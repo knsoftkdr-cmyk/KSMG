@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getAll } from '../services/db.js';
 import Photo from '../components/Photo.jsx';
+import CompanyVideo from '../components/CompanyVideo.jsx';
 import IndIcon from '../components/IndIcon.jsx';
 import { INDUSTRIES } from '../data/industries.js';
 import usePageMeta from '../hooks/usePageMeta.js';
@@ -114,6 +115,8 @@ export default function Home() {
 </section>
 
 
+<CompanyVideo />
+
 <section className="wrap why">
   <div className="sec-head">
     <span className="eyebrow">Why choose us</span>
@@ -154,7 +157,7 @@ export default function Home() {
         <li><b>Phone</b><a href="tel:+919896289628">+91 98-9628 9628</a></li>
         <li><b>Email</b><a href="mailto:pr@ksmgtextiles.com">info@ksmgtextiles.com</a></li>
         <li><b>Website</b><span>www.ksmgtextiles.com</span></li>
-        <li><b>Boduppal</b><span>H. No. 8-43/37/6/C, Sai Bhavani Nagar, Boduppal, Near Substation, East Balaji Hills, Medchal-Malkajgiri District, Telangana – 500039, India.</span></li>
+        <li><b>Uppal</b><span>H. No. 13-106, Sri Sri Nagar Colony, Near HUDA Park, Uppal, Hyderabad, Telangana – 500039, India. <a href="https://www.google.com/maps/search/?api=1&query=Sri+Sri+Nagar+Colony,+Near+HUDA+Park,+Uppal,+Hyderabad+500039" target="_blank" rel="noopener noreferrer">Get directions</a></span></li>
 <li><b>Kondapur</b><span>Aditya Neeladri, 4th Cross, Block-C, Sriram Nagar, Kondapur, Hyderabad – 500084, India.</span></li>
       </ul>
       <Link to="/quote" className="btn gold">Request a quote</Link>
@@ -162,7 +165,7 @@ export default function Home() {
     <div className="contact-map">
       <iframe
         title="KSMG Global location"
-        src="https://www.google.com/maps?q=Sai+Bhavani+Nagar+Boduppal+Telangana+500039&output=embed"
+        src="https://www.google.com/maps?q=H.+No.+13-106,+Sri+Sri+Nagar+Colony,+Near+HUDA+Park,+Uppal,+Hyderabad,+Telangana+500039&output=embed"
         loading="lazy"
         referrerPolicy="no-referrer-when-downgrade"
       />

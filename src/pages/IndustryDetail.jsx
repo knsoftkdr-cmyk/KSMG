@@ -5,6 +5,7 @@ import { getAll } from '../services/db.js';
 import Photo from '../components/Photo.jsx';
 import IndIcon from '../components/IndIcon.jsx';
 import usePageMeta from '../hooks/usePageMeta.js';
+import CatalogueLinks from '../components/CatalogueLinks.jsx';
 const TAG = {
   schools: 'Complete Uniform Solutions for Schools, Colleges and Educational Institutions',
   healthcare: 'Reliable Uniforms for Hospitals, Clinics and Medical Institutions',
@@ -68,6 +69,7 @@ export default function IndustryDetail() {
           </div>
         </section>
       )}
+      <CatalogueLinks industry={slug} name={ind.name} />
     </>
   );
 }

@@ -38,7 +38,9 @@ export default function Quote() {
     if (f.name.trim().length < 2) return setErr('Please enter your name.');
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return setErr('Please enter a valid email, like name@example.com.');
     if (f.phone.trim() && (digits.length < 8 || digits.length > 15)) return setErr('Phone number should have 8 to 15 digits.');
-    if (f.quantity && Number(f.quantity) < 1) return setErr('Quantity must be 1 or more.');
+    if (f.name.trim().length > 100 || f.organisation.length > 150 || f.location.length > 150) return setErr('Name, organisation or location is too long.');
+    if (f.message.length > 5000) return setErr('Details can have at most 5000 characters.');
+    if (f.quantity && (!Number.isInteger(Number(f.quantity)) || Number(f.quantity) < 1 || Number(f.quantity) > 1000000)) return setErr('Quantity must be a whole number from 1 to 1,000,000.');
     if (f.neededBy && f.neededBy < new Date().toLocaleDateString('en-CA')) return setErr('Needed-by date cannot be in the past.');
     setErr('');
     setBusy(true);

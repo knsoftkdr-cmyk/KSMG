@@ -6,7 +6,7 @@ export default function Footer() {
     <footer className="foot">
       <img className="foot-logo" src="/images/ksmg-logo-white.png" alt="KSMG Global Private Limited" />
       <nav className="flinks" aria-label="Footer">
-        <Link to="/about">About</Link><Link to="/contact">Contact</Link>
+        <Link to="/about">About</Link><Link to="/contact">Contact</Link><Link to="/credits">Credits</Link>
         {Object.entries(CONTENT).map(([k, c]) => <Link key={k} to={`/${k}`}>{c.title}</Link>)}
       </nav>
       <p>{COMPANY.brand}, a brand of {COMPANY.legalName}. Phase 1 build: catalogue entries marked "Sample" are placeholders.</p>

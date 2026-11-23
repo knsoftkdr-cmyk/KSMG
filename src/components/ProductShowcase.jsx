@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import { INDUSTRIES } from '../data/industries.js';
 
-const IMGS = ['schools', 'healthcare', 'corporate', 'hospitality', 'industrial', 'government', 'transport', 'retail', 'sports', 'food', 'beauty', 'ceremonial', 'events', 'facilities', 'specialised'];
 
 export default function ProductShowcase() {
   return (
@@ -15,7 +14,7 @@ export default function ProductShowcase() {
             <Link to={`/industries/${i.slug}`} className="btn gold">View collection</Link>
           </div>
           <div className="prow-img">
-            {IMGS[n] && <img src={`/images/cards/${IMGS[n]}.jpg`} alt={i.name} loading="lazy" />}
+            <img src={`/images/catalog/${i.slug}.jpg`} alt={i.name} loading="lazy" />
           </div>
         </div>
       ))}

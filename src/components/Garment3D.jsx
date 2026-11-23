@@ -513,7 +513,7 @@ function HiVisModel({ colour }) {
   useEffect(() => {
     let tex = null;
     const col = new THREE.Color(colour);
-    const R = col.r * 255, G = col.g * 255, B = col.b * 255;
+        const hx = parseInt(colour.replace('#', ''), 16); const R = (hx >> 16) & 255, G = (hx >> 8) & 255, B = hx & 255;
     model.traverse(o => {
       if (!o.isMesh) return;
       const orig = o.material.userData.orig;
@@ -554,6 +554,378 @@ function HiVisModel({ colour }) {
   );
 }
 
+function CoverallModel({ colour }) {
+  const { scene } = useGLTF('/models/coverall/coverall.glb');
+  const { model, k, c } = useMemo(() => {
+    const m = scene.clone(true);
+    m.traverse(o => {
+      if (!o.isMesh) return;
+      o.material = o.material.clone();
+      o.material.userData.orig = o.material.map;
+      o.material.side = THREE.DoubleSide;
+      o.material.metalness = 0;
+      o.material.roughness = 0.85;
+      if (!o.geometry.attributes.normal) o.geometry.computeVertexNormals();
+    });
+    const box = new THREE.Box3().setFromObject(m);
+    const size = box.getSize(new THREE.Vector3());
+    const c = box.getCenter(new THREE.Vector3());
+    return { model: m, k: 2.6 / Math.max(size.x, size.y, size.z), c };
+  }, [scene]);
+  useEffect(() => {
+    let tex = null;
+    const hx = parseInt(colour.replace('#', ''), 16);
+    const R = (hx >> 16) & 255, G = (hx >> 8) & 255, B = hx & 255;
+    model.traverse(o => {
+      if (!o.isMesh) return;
+      const orig = o.material.userData.orig;
+      const img = orig && orig.image;
+      if (!img || !img.width) return;
+      try {
+        const cv = document.createElement('canvas');
+        cv.width = img.width; cv.height = img.height;
+        const x = cv.getContext('2d', { willReadFrequently: true });
+        x.drawImage(img, 0, 0);
+        const d = x.getImageData(0, 0, cv.width, cv.height);
+        const p = d.data;
+        for (let i = 0; i < p.length; i += 4) {
+          const mx = Math.max(p[i], p[i + 1], p[i + 2]);
+          const mn = Math.min(p[i], p[i + 1], p[i + 2]);
+          const s = mx === 0 ? 0 : (mx - mn) / mx;
+          if (s > 0.45) {
+          const v = Math.max(0.6, Math.min(1.5, mx / 100));
+            p[i] = Math.min(255, R * v); p[i + 1] = Math.min(255, G * v); p[i + 2] = Math.min(255, B * v);
+          } else if (mx <= 120) {
+            p[i] = R * 0.6; p[i + 1] = G * 0.6; p[i + 2] = B * 0.6;
+          } else {
+            p[i] = 255; p[i + 1] = 255; p[i + 2] = 255;
+          }
+        }
+        x.putImageData(d, 0, 0);
+        tex = new THREE.CanvasTexture(cv);
+        tex.flipY = false;
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.anisotropy = 8;
+        o.material.map = tex;
+        o.material.color.set('#ffffff');
+        o.material.emissiveMap = tex;
+        o.material.emissive.set('#ffffff');
+        o.material.emissiveIntensity = 0.4;
+        o.material.needsUpdate = true;
+      } catch (e) { console.warn('coverall recolour failed', e); }
+    });
+    return () => { if (tex) tex.dispose(); };
+  }, [model, colour]);
+  return (
+    <group scale={k}>
+      <primitive object={model} position={[-c.x, -c.y, -c.z]} />
+    </group>
+  );
+}
+
+
+function SetPart({ url, colour, pattern = 'Plain', repeat = 3, height, y, wide = 1, pocket = false, texUrl = '' }) {
+  const { scene } = useGLTF(url);
+  const { model, k } = useMemo(() => {
+    const m = scene.clone(true);
+    m.traverse(o => { if (o.isMesh) o.material = o.material.clone(); });
+    const box = new THREE.Box3().setFromObject(m);
+    const size = box.getSize(new THREE.Vector3());
+    const c = box.getCenter(new THREE.Vector3());
+    m.position.set(-c.x, -c.y, -c.z);
+    if (pocket) {
+      const pk = new THREE.Mesh(
+        new THREE.BoxGeometry(0.105, 0.125, 0.014),
+        new THREE.MeshStandardMaterial({ roughness: 0.85 })
+      );
+      pk.position.set(0.15, 0.17, 0.142);
+      pk.rotation.x = -0.12;
+      m.add(pk);
+    }
+    return { model: m, k: height / size.y };
+  }, [scene, height, pocket]);
+  useEffect(() => {
+    let tex = null;
+    let dead = false;
+    const TILE = 0.12; // chinna = checks chinnavi. 0.08 chinna, 0.2 peddavi
+    const apply = t => {
+      model.traverse(o => {
+        if (o.isMesh) {
+          o.material.map = t;
+          o.material.color.set(t ? '#ffffff' : colour);
+          if (t && texUrl) {
+            o.material.onBeforeCompile = shader => {
+              shader.uniforms.uTriScale = { value: 1 / TILE };
+              shader.vertexShader = shader.vertexShader
+                .replace('#include <common>', '#include <common>\nvarying vec3 vTriPos;\nvarying vec3 vTriNrm;')
+                .replace('#include <begin_vertex>', '#include <begin_vertex>\nvTriPos = (modelMatrix * vec4(transformed, 1.0)).xyz;\nvTriNrm = normalize(mat3(modelMatrix) * normal);');
+              shader.fragmentShader = shader.fragmentShader
+                .replace('#include <common>', '#include <common>\nvarying vec3 vTriPos;\nvarying vec3 vTriNrm;\nuniform float uTriScale;')
+                .replace('#include <map_fragment>', `
+#ifdef USE_MAP
+  vec3 an = abs(normalize(vTriNrm));
+  vec2 tuv = (an.z >= an.x) ? vTriPos.xy : vTriPos.zy;
+  vec4 sampledDiffuseColor = texture2D(map, tuv * uTriScale);
+  diffuseColor *= sampledDiffuseColor;
+#endif
+`);
+            };
+            o.material.customProgramCacheKey = () => 'tri-' + TILE;
+          } else {
+            o.material.onBeforeCompile = () => {};
+            o.material.customProgramCacheKey = () => 'plain';
+          }
+          o.material.needsUpdate = true;
+        }
+      });
+    };
+    if (texUrl) {
+      new THREE.TextureLoader().load(texUrl, t => {
+        if (dead) { t.dispose(); return; }
+        t.colorSpace = THREE.SRGBColorSpace;
+        t.wrapS = t.wrapT = THREE.RepeatWrapping;
+        t.repeat.set(repeat, repeat);
+        t.anisotropy = 8;
+        t.flipY = false;
+        tex = t;
+        apply(t);
+      });
+    } else {
+      if (pattern === 'Stripes' || pattern === 'Checks') {
+        const cv = document.createElement('canvas');
+        cv.width = 256; cv.height = 256;
+        const x = cv.getContext('2d');
+        x.fillStyle = colour; x.fillRect(0, 0, 256, 256);
+        x.fillStyle = 'rgba(255,255,255,0.35)';
+        for (let i = 0; i < 256; i += 32) x.fillRect(i, 0, 12, 256);
+        if (pattern === 'Checks') for (let j = 0; j < 256; j += 32) x.fillRect(0, j, 256, 12);
+        tex = new THREE.CanvasTexture(cv);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+        tex.repeat.set(repeat, repeat);
+      }
+      apply(tex);
+    }
+    return () => { dead = true; if (tex) tex.dispose(); };
+  }, [model, colour, pattern, repeat, texUrl]);
+  return (
+    <group position={[0, y, 0]} scale={[k * wide, k, k * wide]}>
+      <primitive object={model} />
+    </group>
+  );
+}
+function SchoolShirtModel({ colour, pattern = 'Plain', texUrl = '' }) {
+  return (
+    <group scale={2.6}>
+      <SetPart url="/models/school-shirt/shirt-school.glb" colour={colour} pattern={pattern} height={1} y={0} texUrl={texUrl} />
+    </group>
+  );
+}
+function SchoolSet({ shirtColour, pantColour, shirtPattern = 'Plain', pantPattern = 'Plain', shirtWide = 1, pantY = -0.45, shirtTex = '', pantTex = '' }) {
+  return (
+    <group scale={1.75} position={[0, 0.306, 0]}>
+      <SetPart url="/models/school-shirt/shirt-tucked.glb" colour={shirtColour} pattern={shirtPattern} repeat={4} height={0.65} y={0.225} wide={shirtWide} texUrl={shirtTex} />
+      <SetPart url="/models/school-pant/pant-school.glb" colour={pantColour} pattern={pantPattern} repeat={3} height={0.90} y={pantY} wide={1.08} texUrl={pantTex} />
+    </group>
+  );
+}
+
+function GirlPinafore({ colour, texUrl = '', shirtColour, shirtTex = '' }) {
+  const mats = useMemo(() => ({
+    skirt: new THREE.MeshStandardMaterial({ roughness: 0.85, side: THREE.DoubleSide }),
+    bodice: new THREE.MeshStandardMaterial({ roughness: 0.85, side: THREE.DoubleSide }),
+    band: new THREE.MeshStandardMaterial({ roughness: 0.85, side: THREE.DoubleSide }),
+  }), []);
+
+  const geos = useMemo(() => {
+    const s = new THREE.Shape();
+    s.moveTo(-0.19, 0.12);
+    s.lineTo(-0.19, 0.27);
+    s.lineTo(-0.165, 0.33);
+    s.lineTo(-0.17, 0.40);
+    s.lineTo(-0.19, 0.45);
+    s.lineTo(-0.11, 0.45);
+    s.lineTo(-0.11, 0.34);
+    s.lineTo(0.11, 0.34);
+    s.lineTo(0.11, 0.45);
+    s.lineTo(0.19, 0.45);
+    s.lineTo(0.17, 0.40);
+    s.lineTo(0.165, 0.33);
+    s.lineTo(0.19, 0.27);
+    s.lineTo(0.19, 0.12);
+    s.closePath();
+    const bodice = new THREE.ExtrudeGeometry(s, { depth: 0.16, bevelEnabled: false });
+    bodice.translate(0, 0, -0.08);
+
+    const pts = [];
+    for (let i = 0; i <= 12; i++) {
+      const t = i / 12;
+      const y = -0.52 + t * 0.64;
+      const r = 0.20 + 0.13 * Math.pow(1 - t, 1.2);
+      pts.push(new THREE.Vector2(r, y));
+    }
+    const skirt = new THREE.LatheGeometry(pts, 48);
+    const band = new THREE.CylinderGeometry(0.205, 0.205, 0.06, 48, 1, true);
+    return { bodice, skirt, band };
+  }, []);
+
+  useEffect(() => {
+    const reps = { skirt: [6, 2], bodice: [8, 8], band: [6, 1] };
+    const keys = Object.keys(mats);
+    let dead = false;
+    const made = [];
+    const paint = (key, t) => {
+      const m = mats[key];
+      m.map = t;
+      m.color.set(t ? '#ffffff' : colour);
+      m.needsUpdate = true;
+    };
+    if (texUrl) {
+      new THREE.TextureLoader().load(texUrl, base => {
+        if (dead) { base.dispose(); return; }
+        keys.forEach(key => {
+          const t = base.clone();
+          t.needsUpdate = true;
+          t.colorSpace = THREE.SRGBColorSpace;
+          t.wrapS = t.wrapT = THREE.RepeatWrapping;
+          t.repeat.set(reps[key][0], reps[key][1]);
+          t.anisotropy = 8;
+          made.push(t);
+          paint(key, t);
+        });
+      });
+    } else {
+      keys.forEach(key => paint(key, null));
+    }
+    return () => { dead = true; made.forEach(t => t.dispose()); };
+  }, [mats, colour, texUrl]);
+
+  return (
+    <group>
+      <SetPart url="/models/school-shirt/shirt-tucked.glb" colour={shirtColour} repeat={4} height={0.65} y={0.225} texUrl={shirtTex} />
+      <mesh geometry={geos.bodice} material={mats.bodice} />
+      <mesh geometry={geos.skirt} material={mats.skirt} scale={[1, 1, 0.6]} />
+      <mesh geometry={geos.band} material={mats.band} position={[0, 0.13, 0]} scale={[1, 1, 0.6]} />
+    </group>
+  );
+}
+function PairScene({ shirtColour, shirtPattern, shirtTex, pantColour, pantTex }) {
+  return (
+    <>
+      <group position={[-1.3, 0, 0]}>
+        <SchoolSet shirtColour={shirtColour} shirtPattern={shirtPattern} shirtTex={shirtTex} pantColour={pantColour} pantTex={pantTex} />
+      </group>
+      <group position={[1.3, 0, 0]}>
+        <group scale={1.75} position={[0, 0.306, 0]}>
+          <SetPart url="/models/school-shirt/shirt-tucked.glb" colour={shirtColour} repeat={4} height={0.65} y={0.225} wide={1}texUrl={shirtTex} />
+<group position={[0.015, 0, 0]}><SetPart url="/models/skirt/skirt.glb" colour={pantColour} repeat={3} height={0.72} y={-0.23} wide={1.20} texUrl={pantTex} /></group>
+</group>
+      </group>
+    </>
+  );
+}
+function BlazerSchoolModel({ colour, height = 1.15, y = 0.725, wide = 1.58 }) {
+  const { scene } = useGLTF('/models/blazer_school/blazer_school.glb');
+  const { model, k } = useMemo(() => {
+    const m = scene.clone(true);
+    m.traverse(o => { if (o.isMesh) o.material = o.material.clone(); });
+    const box = new THREE.Box3().setFromObject(m);
+    const size = box.getSize(new THREE.Vector3());
+    const c = box.getCenter(new THREE.Vector3());
+    m.position.set(-c.x, -c.y, -c.z);
+    
+    return { model: m, k: height / size.y };
+  }, [scene, height]);
+  useEffect(() => {
+    model.traverse(o => {
+      if (o.isMesh) {
+        o.material.color.set(colour);
+        o.material.needsUpdate = true;
+      }
+    });
+  }, [model, colour]);
+  const lining = useMemo(() => model.clone(true), [model]);
+  return (
+    
+    <group position={[0, y, 0]} scale={[k * wide, k, k * wide]}>
+      <primitive object={model} />
+      <group scale={0.96}><primitive object={lining} /></group>
+    </group>
+  );
+}
+
+function BlazerSetOld({ blazerColour, shirtColour, shirtPattern }) {
+  return (
+    <><SchoolSet shirtColour={shirtColour} shirtPattern={shirtPattern} pantColour="#5a5f6b" shirtWide={0.88} />
+      <BlazerSchoolModel colour={blazerColour} />
+    </>
+  );
+}
+function BlazerSet({ blazerColour, shirtColour, shirtPattern, pantColour = '#5a5f6b' }) {
+  const FIT_W = 1.4; // blazer width vs shirt (peddadi chesthe broad)
+  const LEN = 0.85;   // blazer length (peddadi chesthe longer)
+  const shirt = useGLTF('/models/school-shirt/shirt-tucked.glb');
+  const blazer = useGLTF('/models/blazer_school/blazer_school.glb');
+  const fit = useMemo(() => {
+    const sb = new THREE.Box3().setFromObject(shirt.scene).getSize(new THREE.Vector3());
+    const bb = new THREE.Box3().setFromObject(blazer.scene).getSize(new THREE.Vector3());
+    const shirtWidth = sb.x * (0.65 / sb.y) * 0.88 * 1.75;
+    const shirtTop = 0.306 + 1.75 * (0.225 + 0.325);
+    const s = (shirtWidth * FIT_W) / bb.x;
+    const height = bb.y * s * LEN;
+    return { height, y: shirtTop + 0.02 - height / 2, wide: 1 / LEN };
+  }, [shirt, blazer]);
+  return (
+    <>
+      <SchoolSet shirtColour={shirtColour} shirtPattern={shirtPattern} pantColour={pantColour} shirtWide={0.60} pantY={-0.48}/>
+      <BlazerSchoolModel colour={blazerColour} height={fit.height} y={fit.y} wide={fit.wide} />
+    </>
+  );
+}
+
+function BlazerPair({ view, colour, shirtColour, shirtPattern }) {
+  if (view === 'side') {
+    return <BlazerSet blazerColour={colour} shirtColour={shirtColour} shirtPattern={shirtPattern} />;
+  }
+  const d = view === 'back' ? -1 : 1;
+  return (
+    <>
+      <group position={[-1.5 * d, 0, 0]}>
+        <BlazerSchoolModel colour={colour} height={1.9} y={0} wide={1} />
+      </group>
+      <group position={[1.3 * d, 0, 0]}>
+        <BlazerSet blazerColour={colour} shirtColour={shirtColour} shirtPattern={shirtPattern} />
+      </group>
+    </>
+  );
+}
+
+function GownModel({ colour }) {
+  const { scene } = useGLTF('/models/gown/gown_clean.glb');
+  const { model, k } = useMemo(() => {
+    const m = scene.clone(true);
+    m.traverse(o => { if (o.isMesh) o.material = o.material.clone(); });
+    const box = new THREE.Box3().setFromObject(m);
+    const size = box.getSize(new THREE.Vector3());
+    const c = box.getCenter(new THREE.Vector3());
+    m.position.set(-c.x, -c.y, -c.z);
+    return { model: m, k: 2.6 / size.y };
+  }, [scene]);
+  useEffect(() => {
+    model.traverse(o => {
+      if (o.isMesh) {
+        o.material.color.set(colour);
+        o.material.needsUpdate = true;
+      }
+    });
+  }, [model, colour]);
+  return (
+    <group scale={k}>
+      <primitive object={model} />
+    </group>
+  );
+}
+
 function CameraRig({ view, controls }) {
   const { camera } = useThree();
   useEffect(() => {
@@ -565,23 +937,80 @@ function CameraRig({ view, controls }) {
   return null;
 }
 
-export default function Garment3D({ garment = 'Shirt', colour, pattern = 'Plain', logoUrl = '', logoPos = { dx: 0, dy: 0, size: 32 } }) {
+export default function Garment3D({ garment = 'Shirt', colour, pattern = 'Plain', logoUrl = '', logoPos = { dx: 0, dy: 0, size: 32 }, shirtColour = '#ffffff', shirtPattern = 'Plain', pantColour = '#5a5f6b', shirtTex = '', pantTex = '' }){
+  const [blazerOnly, setBlazerOnly] = useState(false);
   const [view, setView] = useState('front');
   const controls = useRef();
+    if (garment === 'Pair') {
+    return (
+      <div>
+        <div className="g3d-pair">
+
+          
+          <MiniCanvas view={view}>
+            <SchoolSet shirtColour={shirtColour} shirtPattern={shirtPattern} shirtTex={shirtTex} pantColour={pantColour} pantTex={pantTex} />
+            {logoUrl && <LogoPlane url={logoUrl} pos={{ ...logoPos, dx: logoPos.dx - 14, dy: logoPos.dy - 40, size: logoPos.size * 0.7 }} />}
+          </MiniCanvas>
+          <MiniCanvas view={view}>
+            <group scale={1.75} position={[0, 0.306, 0]}>
+              <SetPart url="/models/school-shirt/shirt-tucked.glb" colour={shirtColour} repeat={4} height={0.65} y={0.225} wide={1} texUrl={shirtTex} />
+              <group position={[0.015, 0, 0]}><SetPart url="/models/skirt/skirt.glb" colour={pantColour} repeat={3} height={0.72} y={-0.23} wide={1.20} texUrl={pantTex} /></group>
+            </group>
+            {/* {logoUrl && <LogoPlane url={logoUrl} pos={{ ...logoPos, dy: logoPos.dy - 40 }} />} */}
+            {logoUrl && <LogoPlane url={logoUrl} pos={{ ...logoPos, dx: logoPos.dx - 20, dy: logoPos.dy - 50 }} />}
+          </MiniCanvas>
+        </div>
+        <div className="ds-mode">
+          {['front', 'back', 'side'].map(v => (
+            <button key={v} type="button" aria-pressed={view === v} className={view === v ? 'btn gold' : 'btn ghost'} onClick={() => setView(v)}>
+              {v.charAt(0).toUpperCase() + v.slice(1)}
+            </button>
+          ))}
+        </div>
+        <p className="ds-note small">Drag to rotate. Scroll or pinch to zoom. Right-click drag (or two fingers) to move. Each preview moves on its own.</p>
+      </div>
+    );
+  }
+    if (garment === 'Blazer') {
+    return (
+      <div>
+        <div className="g3d-pair">
+          <MiniCanvas view={view}>
+            <BlazerSchoolModel colour={colour} height={1.9} y={0} wide={1} />
+            {logoUrl && <LogoPlane url={logoUrl} pos={logoPos} />}
+          </MiniCanvas>
+          <MiniCanvas view={view}>
+            <BlazerSet blazerColour={colour} shirtColour={shirtColour} shirtPattern={shirtPattern} pantColour={pantColour} />
+            {logoUrl && <LogoPlane url={logoUrl} pos={{ ...logoPos, dx: logoPos.dx - 14, dy: logoPos.dy - 40, size: logoPos.size * 0.7 }} />}
+          </MiniCanvas>
+        </div>
+        <div className="ds-mode">
+          {['front', 'back', 'side'].map(v => (
+            <button key={v} type="button" aria-pressed={view === v} className={view === v ? 'btn gold' : 'btn ghost'} onClick={() => setView(v)}>
+              {v.charAt(0).toUpperCase() + v.slice(1)}
+            </button>
+          ))}
+        </div>
+        <p className="ds-note small">Drag to rotate. Pinch or scroll to zoom. Each preview moves on its own.</p>
+      </div>
+    );
+  }
   return (
     <div>
-      <div className="g3d">
-        <Canvas shadows camera={{ position: [0, 0.3, 6], fov: 40 }} dpr={[1, 2]}>
+      <div className="g3d" role="img" aria-label={`3D preview of ${garment}. Use the Front, Back and Side buttons to change the view.`}>
+        <Canvas shadows gl={{ preserveDrawingBuffer: true }} camera={{ position: [0, 0.3, 6], fov: 40 }} dpr={[1, 2]}>
           <hemisphereLight args={['#ffffff', '#9aa3c0', 1.2]} />
           <ambientLight intensity={1.0} />
           <directionalLight position={[4, 6, 5]} intensity={1.4} castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.0004} shadow-normalBias={0.02} shadow-camera-left={-3} shadow-camera-right={3} shadow-camera-top={3} shadow-camera-bottom={-3} shadow-camera-near={1} shadow-camera-far={20} />
           <directionalLight position={[-4, 3, 4]} intensity={0.9} />
           <directionalLight position={[0, 3, -6]} intensity={0.8} />
           <Suspense fallback={null}>
-            {garment === 'Shirt'
-              ? <ShirtModel colour={colour} pattern={pattern} />
+            {garment === 'Pair'
+              ? <PairScene shirtColour={shirtColour} shirtPattern={shirtPattern} shirtTex={shirtTex} pantColour={pantColour} pantTex={pantTex} />
+              : garment === 'Shirt'
+              ? <SchoolShirtModel colour={colour} pattern={pattern} texUrl={shirtTex} />
               : /trouser|pant/i.test(garment)
-                ? <PantsModel colour={colour} pattern={pattern} />
+              ?<SchoolSet shirtColour={shirtColour} shirtPattern={shirtPattern} shirtTex={shirtTex} pantColour={colour} pantTex={pantTex} />
                 : garment === 'Lab coat'
                   ? <LabCoatModel colour={colour} pattern={pattern} />
                   : (garment === 'Scrub top' || garment === 'Salon wear')
@@ -593,26 +1022,89 @@ export default function Garment3D({ garment = 'Shirt', colour, pattern = 'Plain'
                         : garment === 'Pinafore'
                           ? <PinaforeModel colour={colour} pattern={pattern} />
                           : garment === 'Blazer'
-                            ? <BlazerModel colour={colour} pattern={pattern} />
+                          ? <BlazerPair view={view} colour={colour} shirtColour={shirtColour} shirtPattern={shirtPattern} />
                             : garment === 'Chef coat'
                               ? <ChefCoatModel colour={colour} pattern={pattern} />
                               : garment === 'Hi-vis jacket'
                                 ? <HiVisModel colour={colour} />
+                                : garment === 'Gown'
+                                  ? <GownModel colour={colour} />
+                                : garment === 'Coverall'
+                                ? <CoverallModel colour={colour} />
                                 : <Garment garment={garment} colour={colour} pattern={pattern} />}
-            {garment === 'Shirt' && logoUrl && <LogoPlane url={logoUrl} pos={logoPos} />}
+            {logoUrl && <LogoPlane url={logoUrl} pos={logoPos} />}
           </Suspense>
           <ContactShadows position={[0, -1.25, 0]} opacity={0.35} scale={8} blur={2.5} far={3} />
-          <OrbitControls ref={controls} enablePan={false} minDistance={3} maxDistance={10} />
+          <OrbitControls ref={controls} enablePan screenSpacePanning zoomToCursor minDistance={1.5} maxDistance={10} />
           <CameraRig view={view} controls={controls} />
           <ShadowRig />
         </Canvas>
       </div>
-      <div className="ds-mode">
-        {['front', 'back', 'side'].map(v => (
-          <button key={v} type="button" className={view === v ? 'btn gold' : 'btn ghost'} onClick={() => setView(v)}>{v[0].toUpperCase() + v.slice(1)}</button>
-        ))}
+      <div className="ds-mode">{['front', 'back', 'side'].map(v => (
+  <button
+    key={v}
+    type="button"
+    aria-label={`View ${v}`}
+    aria-pressed={view === v}
+    className={view === v ? 'btn gold' : 'btn ghost'}
+    onClick={() => setView(v)}
+  >
+    {v.charAt(0).toUpperCase() + v.slice(1)}
+  </button>
+))}
       </div>
+      {garment === 'Blazer' && (
+  <div className="ds-mode">
+    <button type="button" className={!blazerOnly ? 'btn gold' : 'btn ghost'} onClick={() => setBlazerOnly(false)}>With shirt and trouser</button>
+    <button type="button" className={blazerOnly ? 'btn gold' : 'btn ghost'} onClick={() => setBlazerOnly(true)}>Blazer only</button>
+  </div>
+)}
       <p className="ds-note small">Drag to rotate. Pinch or scroll to zoom.</p>
+    </div>
+  );
+}
+
+
+function Lights() {
+  return (
+    <>
+      <hemisphereLight args={['#ffffff', '#9aa3c0', 1.2]} />
+      <ambientLight intensity={1.0} />
+      <directionalLight position={[4, 6, 5]} intensity={1.4} />
+      <directionalLight position={[-4, 3, 4]} intensity={0.9} />
+      <directionalLight position={[0, 3, -6]} intensity={0.8} />
+    </>
+  );
+}
+
+function MiniCanvas({ view, children }) {
+  const controls = useRef();
+  const [move, setMove] = useState(false);
+  return (
+    <div className="g3d g3d-half" style={{ position: 'relative' }}>
+      <button
+        type="button"
+        className={move ? 'btn gold' : 'btn ghost'}
+        style={{ position: 'absolute', top: 8, right: 8, zIndex: 2, padding: '4px 10px', fontSize: 12 }}
+        onClick={() => setMove(m => !m)}
+      >
+        {move ? 'Move' : 'Rotate'}
+      </button>
+      <Canvas gl={{ preserveDrawingBuffer: true }} camera={{ position: [0, 0.3, 6], fov: 40 }} dpr={[1, 2]}>
+        <Lights />
+        <Suspense fallback={null}>{children}</Suspense>
+        <ContactShadows position={[0, -1.25, 0]} opacity={0.35} scale={8} blur={2.5} far={3} />
+        <OrbitControls
+          ref={controls}
+          enablePan
+          screenSpacePanning
+          minDistance={1.5}
+          maxDistance={10}
+          mouseButtons={{ LEFT: move ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN }}
+          touches={{ ONE: move ? THREE.TOUCH.PAN : THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN }}
+        />
+        <CameraRig view={view} controls={controls} />
+      </Canvas>
     </div>
   );
 }

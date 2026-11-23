@@ -3,6 +3,7 @@ import { supabase } from './supabase.js';
 const toRow = d => ({
   name: d.name, industry: d.industry, garment: d.garment, fabric: d.fabric,
   colour: d.colour, decoration: d.decoration, pattern: d.pattern || 'Plain', sizes: d.sizes,
+  extra: d.extra || {},
 });
 
 export async function listDesigns() {
@@ -11,6 +12,7 @@ export async function listDesigns() {
   return data.map(r => ({
     id: r.id, name: r.name, industry: r.industry, garment: r.garment, fabric: r.fabric,
     colour: r.colour, decoration: r.decoration, pattern: r.pattern || 'Plain', sizes: r.sizes || {},
+    extra: r.extra || {},
     createdAt: new Date(r.created_at).getTime(),
   }));
 }
@@ -27,6 +29,7 @@ export async function updateDesign(id, d) {
   const snapshot = {
     name: cur.name, industry: cur.industry, garment: cur.garment, fabric: cur.fabric,
     colour: cur.colour, decoration: cur.decoration, pattern: cur.pattern || 'Plain', sizes: cur.sizes || {},
+    extra: cur.extra || {},
   };
   const { error: e2 } = await supabase.from('design_versions').insert({ design_id: id, version: (count || 0) + 1, snapshot });
   if (e2) throw e2;

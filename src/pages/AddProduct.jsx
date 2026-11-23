@@ -41,6 +41,7 @@ export default function AddProduct() {
     const moq = String(f.moq).trim();
     if (moq && !(/^\d+$/.test(moq) && Number(moq) >= 1)) return 'Minimum order quantity must be a whole number, 1 or more.';
     if (f.description.length > 2000) return 'Description must be 2000 characters or fewer.';
+    if (Object.values(f).some(v => typeof v === 'string' && v.length > 2000)) return 'One of the fields is too long (maximum 2000 characters).';
     return '';
   };
   const submit = async e => {

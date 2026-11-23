@@ -69,11 +69,24 @@ export default function SizeAdvisor() {
   return (
     <div className="sa">
       <h3>Size Advisor</h3>
-      <p style={{ fontSize: 13 }}>
-        Hold an A4 sheet flat against your chest (portrait, facing the camera) and take a
-        full-body front photo, standing straight with shoes. Your photo stays in your browser
-        and is not uploaded to our server.
-      </p>
+            <div className="sa-intro">
+        <img
+          className="sa-intro-img"
+          src="/images/size-advisor-sample.jpg"
+          alt="Sample photo: stand straight, hold an A4 sheet flat against your chest, full body with shoes visible"
+          width="120"
+          height="180"
+          loading="lazy"
+        />
+        <div className="sa-intro-text">
+          <p style={{ fontSize: 13 }}>
+            Hold an A4 sheet flat against your chest (portrait, facing the camera) and take a
+            full-body front photo, standing straight with shoes. Your photo stays in your browser
+            and is not uploaded to our server.
+          </p>
+          <small>Sample photo, illustration only.</small>
+        </div>
+      </div>
 
       <label>
         Photo: <input type="file" accept="image/*" onChange={onPhoto} />

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import usePageMeta from '../hooks/usePageMeta.js';
 import { DEFAULT_RATES, setRates } from '../data/pricing.js';
 import { getSetting, saveSetting } from '../services/settings.js';
+import FeatureFlags from '../components/FeatureFlags.jsx';
 
 function Group({ title, note, obj, onChange }) {
   return (
@@ -28,6 +29,7 @@ export default function Pricing() {
     getSetting('pricing').then(d => setR({ ...DEFAULT_RATES, ...(d || {}) })).catch(() => { setR(DEFAULT_RATES); setMsg('Could not load saved rates. Showing defaults.'); });
   }, []);
 
+
   if (!r) return <section className="wrap">Loading...</section>;
 
   const save = async () => {
@@ -51,6 +53,7 @@ export default function Pricing() {
       <Group title="Pattern extra (Rs per piece)" obj={r.pattern} onChange={v => setR({ ...r, pattern: v })} />
       <button type="button" className="btn gold" disabled={busy} onClick={save}>{busy ? 'Saving...' : 'Save rates'}</button>
       {msg && <p role="status">{msg}</p>}
+      <FeatureFlags />
     </section>
   );
 }

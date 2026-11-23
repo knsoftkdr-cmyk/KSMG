@@ -4,7 +4,7 @@ const A4_H = 29.7 // cm (paper held in portrait)
 const A4_W = 21.0 // cm
 
 // Tune these numbers after testing with real photos
-const HEIGHT_FACTOR = 1 / 0.93 // nose-to-heel is about 93% of full height
+const HEIGHT_FACTOR = 1 / 0.86 // nose-to-heel is about 88% of full height
 const SHOULDER_FACTOR = 1.1    // shoulder joints to shirt shoulder width
 const HIP_FACTOR = 1.7         // hip joints to full hip width
 

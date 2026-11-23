@@ -4,10 +4,12 @@ import Settings from './Settings.jsx';
 import { COMPANY } from '../data/company.js';
 import { INDUSTRIES } from '../data/industries.js';
 import { useAuth } from '../services/auth.jsx';
+import { useFeatures } from '../services/features.js';
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const { user, role } = useAuth();
+  const { on: { classic: studioOn } } = useFeatures();
   const [mega, setMega] = useState(false);
   const [megaP, setMegaP] = useState(false);
   
@@ -23,8 +25,8 @@ export default function Navbar() {
   return (
     <header className="nav">
       <Link to="/" className="brand" onClick={close}><img src="/images/ksmg-logo.png" alt="KSMG Global Private Limited" /></Link>
-      <button className="menu" aria-expanded={open} aria-label="Menu" onClick={() => setOpen(!open)}>{open ? 'Close' : 'Menu'}</button>
-      <nav className={open ? 'open' : ''} onClick={close}>
+      <button className="menu" aria-expanded={open} aria-controls="main-nav" onClick={() => setOpen(!open)}>{open ? 'Close' : 'Menu'}</button>
+      <nav id="main-nav" aria-label="Main" className={open ? 'open' : ''} onClick={close}>
         <NavLink to="/" end>Home</NavLink>
         <div className={mega ? 'mega open' : 'mega'}>
           <Link to="/" onClick={goIndustries}>Industries</Link>
@@ -62,7 +64,8 @@ export default function Navbar() {
             <Link to="/products" className="mega-all">View all products</Link>
           </div>
         </div>
-        <NavLink to="/design-studio">Design Studio</NavLink>
+        <NavLink to="/catalogue">Catalogue</NavLink>
+        {studioOn && <NavLink to="/design-studio">Design Studio</NavLink>}
         {/* <NavLink to="/about">About</NavLink> */}
         <NavLink to="/contact">Contact</NavLink>
         {['product_manager', 'super_admin'].includes(role) && <NavLink to="/admin/add-product">Add product</NavLink>}
