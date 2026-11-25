@@ -1,6 +1,9 @@
 // import { useState, useMemo, useEffect, lazy, Suspense } from 'react';
 import { useState, useMemo, useEffect, lazy, Suspense, Component } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams, useLocation } from 'react-router-dom';
+import { fabricSpec, FABRIC_FIELDS, COLLAR_STYLES, SLEEVE_STYLES } from '../data/fabrics.js';
+import { shareUrl, readShareCode } from '../services/share.js';
+import { submitEnquiry } from '../services/enquiries.js';
 import { INDUSTRIES } from '../data/industries.js';
 import usePageMeta from '../hooks/usePageMeta.js';
 import { useAuth } from '../services/auth.jsx';
@@ -90,6 +93,31 @@ const LOGO_POS = {
   'Salon wear': [114, 48], Coverall: [116, 48], 'Hi-vis jacket': [118, 56], Gown: [116, 50],
 };
 
+const LOGO_START = { dx: 0, dy: 0, size: 32, rot: 0 };
+const NO_PANELS = { collar: '', sleeves: '', cuffs: '' };
+const PANEL_PARTS = [['collar', 'Collar'], ['sleeves', 'Sleeves'], ['cuffs', 'Cuffs / sleeve hem']];
+
+// One row of colour choices for a contrast panel ('' = same as the shirt).
+function PanelRow({ label, value, onChange }) {
+  return (
+    <div className="ds-panel-row">
+      <span>{label}</span>
+      <div className="ds-swatches ds-swatches-sm">
+        <button type="button" className={!value ? 'sw sw-same on' : 'sw sw-same'} aria-pressed={!value}
+          title="Same as shirt" aria-label={`${label}: same as shirt`} onClick={() => onChange('')}>=</button>
+        {COLOURS.map(([n, c]) => (
+          <button key={n} type="button" title={n} aria-label={`${label} ${n}`} aria-pressed={value === c}
+            className={value === c ? 'sw on' : 'sw'} style={{ background: c }} onClick={() => onChange(c)} />
+        ))}
+        <label className="sw-pick" title="Pick any colour">
+          <span aria-hidden="true">+</span>
+          <input type="color" value={value || '#ffffff'} aria-label={`${label}: pick any colour`} onChange={e => onChange(e.target.value)} />
+        </label>
+      </div>
+    </div>
+  );
+}
+
 function Chip({ colour, tex }) {
   const st = { display: 'inline-block', width: 24, height: 24, borderRadius: '50%', border: '1px solid #999', verticalAlign: 'middle' };
   return tex
@@ -118,6 +146,16 @@ export default function DesignStudio() {
   const [pantTex, setPantTex] = useState('');
   const [tab, setTab] = useState('style');
   const [part, setPart] = useState('shirt');
+  // School shirt options (Pair): contrast panels, collar and sleeve style.
+  const [panels, setPanels] = useState(NO_PANELS);
+  const [collarStyle, setCollarStyle] = useState(COLLAR_STYLES[0]);
+  const [sleeve, setSleeve] = useState(SLEEVE_STYLES[0]);
+  const setPanel = (k, v) => setPanels(p => ({ ...p, [k]: v }));
+  const panelsOn = Object.values(panels).some(Boolean);
+  // Fabric details: typical values, or KSMG's own from the 'fabrics' setting.
+  const [fabricOwn, setFabricOwn] = useState(null);
+  useEffect(() => { getSetting('fabrics').then(r => { if (r) setFabricOwn(r); }).catch(() => {}); }, []);
+  const fspec = fabricSpec(fabric, fabricOwn);
   useEffect(() => {
     if (garment === 'Shirt') { setShirtColour(colour); setShirtPattern(pattern); }
     else if (garment === 'Trousers') { setPantColour(colour); }
@@ -133,7 +171,13 @@ export default function DesignStudio() {
   const features = useFeatures();
   const threeOn = features.on.threeD;
   useEffect(() => { if (!threeOn) setMode('2d'); }, [threeOn]);
-  const [logoPos, setLogoPos] = useState({ dx: 0, dy: 0, size: 32 });
+  const [logoPos, setLogoPos] = useState(LOGO_START);
+  // Pair view: the girls shirt has its own logo position, set separately.
+  const [logoPosGirl, setLogoPosGirl] = useState(LOGO_START);
+  const [logoFor, setLogoFor] = useState('boy');
+  const editGirl = garment === 'Pair' && logoFor === 'girl';
+  const editPos = editGirl ? logoPosGirl : logoPos;
+  const setEditPos = editGirl ? setLogoPosGirl : setLogoPos;
   const [logoUrl, setLogoUrl] = useState('');
   const [logoOk, setLogoOk] = useState(false);
   const [qtyOther, setQty] = useState(EMPTY_QTY);
@@ -148,14 +192,42 @@ export default function DesignStudio() {
   const [cmp, setCmp] = useState([]);
   const [cmp3d, setCmp3d] = useState(false);
   const [spec, setSpec] = useState({ gsm: '', composition: '', width: '', finish: '', chest: '', length: '', sleeve: '', notes: '' });
+  // 3D preview as a small JPEG on white (keeps the PDF light and the shape correct).
+  const snapshot = c => {
+    try {
+      const k = Math.min(1, 700 / Math.max(c.width, c.height));
+      const out = document.createElement('canvas');
+      out.width = Math.round(c.width * k); out.height = Math.round(c.height * k);
+      const x = out.getContext('2d');
+      x.fillStyle = '#ffffff'; x.fillRect(0, 0, out.width, out.height);
+      x.drawImage(c, 0, 0, out.width, out.height);
+      return { src: out.toDataURL('image/jpeg', 0.85), w: out.width, h: out.height };
+    } catch { return null; }
+  };
   const makeTechPack = () => {
     const previews = threeOn && mode === '3d'
-      ? [...document.querySelectorAll('.g3d canvas')].slice(0, 2).map(c => { try { return c.toDataURL('image/png'); } catch { return ''; } }).filter(Boolean)
+      ? [...document.querySelectorAll('.g3d canvas')].slice(0, 2).map(snapshot).filter(Boolean)
       : [];
-    const d = { name: dname.trim() || 'Current design', industry, garment, fabric, colour, decoration, pattern, sizes: qty, extra: { shirtColour, shirtTex, pantColour, pantTex } };
-    downloadTechPack(d, (INDUSTRIES.find(i => i.slug === industry) || {}).name, { spec, logoUrl: logoOk !== 'bad' ? logoUrl : '', previews }).catch(() => setMsg('Could not create the tech pack.'));
+    const d = { name: dname.trim() || 'Current design', industry, garment, fabric, colour, decoration, pattern, sizes: qty, extra: { ...designExtra(), pairQty: pq } };
+    downloadTechPack(d, (INDUSTRIES.find(i => i.slug === industry) || {}).name, { spec, fabricSpec: fspec, logoUrl: logoOk !== 'bad' ? logoUrl : '', previews }).catch(() => setMsg('Could not create the tech pack.'));
   };
   const uid = user?.id;
+
+  // Everything about the design that is not a top-level column.
+  const designExtra = () => ({
+    shirtColour, shirtTex, pantColour, pantTex,
+    panels, style: { collar: collarStyle, sleeve },
+  });
+  const loadExtra = e => {
+    if (e.shirtColour) setShirtColour(e.shirtColour);
+    setShirtTex(e.shirtTex || '');
+    if (e.pantColour) setPantColour(e.pantColour);
+    setPantTex(e.pantTex || '');
+    setPanels({ ...NO_PANELS, ...(e.panels || {}) });
+    const st = e.style || {};
+    setCollarStyle(COLLAR_STYLES.includes(st.collar) ? st.collar : COLLAR_STYLES[0]);
+    setSleeve(SLEEVE_STYLES.includes(st.sleeve) ? st.sleeve : SLEEVE_STYLES[0]);
+  };
 
   // Pricing rates from Supabase
   const [, setRatesTick] = useState(0);
@@ -175,16 +247,13 @@ export default function DesignStudio() {
     setQty({ ...EMPTY_QTY, ...s.sizes });
     const e = s.extra || {};
     setPq(e.pairQty || { ...EMPTY_PQ, mShirt: { ...EMPTY_QTY, ...s.sizes } });
-    if (e.shirtColour) setShirtColour(e.shirtColour);
-    setShirtTex(e.shirtTex || '');
-    if (e.pantColour) setPantColour(e.pantColour);
-    setPantTex(e.pantTex || '');
+    loadExtra(e);
     setMsg(`Loaded version ${v.version}. Click Update design to keep it.`);
   };
 
   // Undo / redo
   const [hist, setHist] = useState({ list: [], i: -1 });
-  const snap = useMemo(() => ({ industry, garment, fabric, colour, decoration, pattern, qty, shirtColour, shirtTex, pantColour, pantTex }), [industry, garment, fabric, colour, decoration, pattern, qty, shirtColour, shirtTex, pantColour, pantTex]);
+  const snap = useMemo(() => ({ industry, garment, fabric, colour, decoration, pattern, qty, shirtColour, shirtTex, pantColour, pantTex, panels, collarStyle, sleeve }), [industry, garment, fabric, colour, decoration, pattern, qty, shirtColour, shirtTex, pantColour, pantTex, panels, collarStyle, sleeve]);
   useEffect(() => {
     const t = setTimeout(() => setHist(h => {
       if (h.i >= 0 && JSON.stringify(h.list[h.i]) === JSON.stringify(snap)) return h;
@@ -200,6 +269,9 @@ export default function DesignStudio() {
     setShirtTex(s.shirtTex || '');
     if (s.pantColour) setPantColour(s.pantColour);
     setPantTex(s.pantTex || '');
+    setPanels(s.panels || NO_PANELS);
+    if (s.collarStyle) setCollarStyle(s.collarStyle);
+    if (s.sleeve) setSleeve(s.sleeve);
   };
   const undo = () => { if (hist.i > 0) { applySnap(hist.list[hist.i - 1]); setHist(h => ({ ...h, i: h.i - 1 })); } };
   const redo = () => { if (hist.i < hist.list.length - 1) { applySnap(hist.list[hist.i + 1]); setHist(h => ({ ...h, i: h.i + 1 })); } };
@@ -213,7 +285,7 @@ export default function DesignStudio() {
     if (name.length > 80) return setMsg('Name can have at most 80 characters.');
     setSaving(true);
     try {
-            const payload = { name, industry, garment, fabric, colour, decoration, pattern, sizes: qty, extra: { shirtColour, shirtTex, pantColour, pantTex, pairQty: pq } };
+            const payload = { name, industry, garment, fabric, colour, decoration, pattern, sizes: qty, extra: { ...designExtra(), pairQty: pq } };
       if (editId) {
         await updateDesign(editId, payload);
         setMsg('Design updated. The old version is kept in history.');
@@ -239,10 +311,7 @@ const openDesign = d => {
   setQty({ ...EMPTY_QTY, ...d.sizes });
   const e = d.extra || {};
   setPq(e.pairQty || { ...EMPTY_PQ, mShirt: { ...EMPTY_QTY, ...d.sizes } });
-  if (e.shirtColour) setShirtColour(e.shirtColour);
-  setShirtTex(e.shirtTex || '');
-  if (e.pantColour) setPantColour(e.pantColour);
-  setPantTex(e.pantTex || '');
+  loadExtra(e);
   setEditId(d.id);
   setDname(d.name);
   loadVersions(d.id);
@@ -278,6 +347,88 @@ const orderLines = order.map(l => {
 const orderSum = orderLines.reduce((a, l) => a + l.lineTotal, 0);
   const strokeColour = colour === '#ffffff' ? '#999' : 'rgba(0,0,0,0.35)';
   const [lx, ly] = LOGO_POS[garment];
+  const indName = (INDUSTRIES.find(i => i.slug === industry) || {}).name || industry;
+  const colourLabel = c => (COLOURS.find(x => x[1] === c) || ['', c])[0] || c;
+
+  // Shirt style lines for the quote text and approvals (school set only).
+  const shirtStyleLines = () => {
+    if (garment !== 'Pair') return [];
+    const pl = PANEL_PARTS.filter(([k]) => panels[k]).map(([k, n]) => `${n} ${colourLabel(panels[k])}`);
+    return [
+      `Shirt collar: ${collarStyle}`,
+      `Shirt sleeves: ${sleeve}`,
+      `Contrast panels: ${pl.length ? pl.join(', ') : 'none'}`,
+    ];
+  };
+
+  // ---- Share link (#53) ----
+  const [params] = useSearchParams();
+  const location = useLocation();
+  const [shareMsg, setShareMsg] = useState('');
+  const link = () => shareUrl({ name: dname.trim(), industry, garment, fabric, colour, decoration, pattern, sizes: qty, extra: designExtra() });
+  const copyLink = async () => {
+    const url = link();
+    try { await navigator.clipboard.writeText(url); setShareMsg('Link copied. Paste it in WhatsApp, email or chat.'); }
+    catch { window.prompt('Copy this link:', url); }
+  };
+  const nativeShare = async () => {
+    try { await navigator.share({ title: 'Uniform design from KSMG Design Studio', text: 'Please review this uniform design.', url: link() }); }
+    catch { /* cancelled */ }
+  };
+
+  // Opening a shared link fills the studio with that design.
+  const [shared, setShared] = useState(null);
+  useEffect(() => {
+    const code = params.get('share');
+    if (!code) return;
+    const d = readShareCode(code, { garments: GARMENTS, fabrics: FABRICS, decorations: DECORATION, collars: COLLAR_STYLES });
+    if (!d) { setMsg('This share link is not valid or is incomplete.'); return; }
+    setIndustry(INDUSTRIES.some(i => i.slug === d.industry) ? d.industry : INDUSTRIES[0].slug);
+    setGarment(d.garment); setFabric(d.fabric); setColour(d.colour);
+    setDecoration(d.decoration); setPattern(d.pattern);
+    setQty({ ...EMPTY_QTY, ...d.sizes });
+    setPq({ ...EMPTY_PQ, mShirt: { ...EMPTY_QTY, ...d.sizes } });
+    loadExtra(d.extra);
+    setMode('3d');
+    setShared(d);
+    // Run once for the link the page was opened with.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ---- Customer approval (#54): sent to the KSMG team as a request ----
+  const [ap, setAp] = useState({ name: '', org: '', note: '' });
+  const [apBusy, setApBusy] = useState(false);
+  const [apDone, setApDone] = useState(null);
+  const [apErr, setApErr] = useState('');
+  const sendApproval = async answer => {
+    if (ap.name.trim().length < 2) return setApErr('Please enter your name.');
+    if (answer === 'changes' && ap.note.trim().length < 3) return setApErr('Please write what should change.');
+    if (ap.note.length > 2000) return setApErr('Notes can have at most 2000 characters.');
+    setApErr(''); setApBusy(true);
+    const lines = [
+      answer === 'approve' ? 'DESIGN APPROVED by the customer.' : 'CHANGES REQUESTED by the customer.',
+      ap.note.trim() ? `Customer notes: ${ap.note.trim()}` : '',
+      '',
+      `Design: ${shared?.name || 'Shared design'}`,
+      `Industry: ${indName}`,
+      `Garment: ${garment}`,
+      `Fabric: ${fabric}`,
+      ...shirtStyleLines(),
+      `Decoration: ${decoration}`,
+      `Total quantity: ${total}`,
+      `Design link: ${window.location.href}`,
+    ].filter((l, i) => l || i === 2);
+    try {
+      const id = await submitEnquiry({
+        name: ap.name.trim(), organisation: ap.org.trim(), industry: indName, email: user.email, phone: '',
+        quantity: total > 0 ? String(total) : '', location: '', neededBy: '', message: lines.join('\n'),
+      }, `Design approval: ${answer === 'approve' ? 'approved' : 'changes requested'}`);
+      setApDone({ id, answer });
+    } catch {
+      setApErr('Could not send. Please try again.');
+    }
+    setApBusy(false);
+  };
 
   const rememberDesign = () => {
     const ind = INDUSTRIES.find(i => i.slug === industry);
@@ -289,6 +440,7 @@ const orderSum = orderLines.reduce((a, l) => a + l.lineTotal, 0);
       `Colour: ${colourName}`,
       `Pattern: ${pattern}`,
       `Fabric: ${fabric}`,
+      ...shirtStyleLines(),
       `Decoration: ${decoration}`,
       `Logo: ${logoUrl ? 'yes (will share the file separately)' : 'none'}`,
       `Sizes: ${sizeText}`,
@@ -332,18 +484,55 @@ const orderSum = orderLines.reduce((a, l) => a + l.lineTotal, 0);
   return (
     <section className="ds">
       <div className="ds-head">
-        <h1>Custom Design Studio</h1>
+        <div className="ds-head-row">
+          <h1>Custom Design Studio</h1>
+          <nav className="ds-links" aria-label="Design references">
+            <Link to="/catalogue">Catalogue</Link>
+            <Link to="/brochure">Brochure</Link>
+          </nav>
+        </div>
+        {shared && (
+          <div className="ds-shared" role="region" aria-label="Shared design review">
+            <div className="ds-shared-head">
+              <span className="ds-shared-tag">Shared design</span>
+              <h2>{shared.name || 'Uniform design for your review'}</h2>
+              <p>Look at the design below (turn it in 3D, check colours and sizes). Then approve it or tell us what to change. Your answer goes straight to the KSMG team.</p>
+            </div>
+            {apDone ? (
+              <p className="ds-shared-done" role="status">
+                {apDone.answer === 'approve' ? 'Thank you, your approval is sent.' : 'Thank you, your change request is sent.'} Reference: <strong>{apDone.id}</strong>. <Link to="/my-requests">Track it in My requests</Link>.
+              </p>
+            ) : user ? (
+              <div className="ds-shared-form">
+                <label>Your name<input value={ap.name} maxLength={100} onChange={e => setAp({ ...ap, name: e.target.value })} /></label>
+                <label>School / organisation<input value={ap.org} maxLength={150} onChange={e => setAp({ ...ap, org: e.target.value })} /></label>
+                <label className="wide">Notes (needed if you ask for changes)
+                  <textarea rows="2" maxLength={2000} value={ap.note} onChange={e => setAp({ ...ap, note: e.target.value })} placeholder="e.g. Make the collar navy, logo a little smaller" />
+                </label>
+                {apErr && <p className="err wide" role="alert">{apErr}</p>}
+                <div className="ds-shared-actions wide">
+                  <button type="button" className="btn gold" disabled={apBusy} onClick={() => sendApproval('approve')}>{apBusy ? 'Sending...' : 'Approve design'}</button>
+                  <button type="button" className="btn ghost" disabled={apBusy} onClick={() => sendApproval('changes')}>Request changes</button>
+                </div>
+              </div>
+            ) : (
+              <p className="ds-shared-login">
+                <Link to="/login" state={{ from: location.pathname + location.search }} className="btn gold">Log in to approve or request changes</Link>
+              </p>
+            )}
+          </div>
+        )}
         <p className="ds-note"><strong>Conceptual preview only.</strong> This is not a manufacturing-ready pattern. Our team reviews every design before quoting. Fabric options are to be confirmed by the company.</p>
       </div>
 
       <div className="ds-grid">
-       <div className="ds-form">
-          <div className="ds-mode" role="tablist" aria-label="Design steps">
-            {[['style', 'Style'], ['colour', 'Colour'], ['logo', 'Logo'], ['sizes', 'Sizes']].map(([k, n]) => (
-              <button key={k} type="button" role="tab" aria-selected={tab === k} className={tab === k ? 'btn gold' : 'btn ghost'} onClick={() => setTab(k)}>{n}</button>
+       <div className="ds-form ds-panel">
+          <div className="ds-steps" role="tablist" aria-label="Design steps">
+            {[['style', 'Style'], ['colour', 'Colour'], ['logo', 'Logo'], ['sizes', 'Sizes']].map(([k, n], i) => (
+              <button key={k} type="button" role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>
+                <span className="ds-step-no" aria-hidden="true">{i + 1}</span>{n}
+              </button>
             ))}
-            <Link to="/catalogue" className="btn ghost">Catalogue</Link>
-            <Link to="/brochure" className="btn ghost">Brochure</Link>
           </div>
 
           {tab === 'style' && (
@@ -362,7 +551,44 @@ const orderSum = orderLines.reduce((a, l) => a + l.lineTotal, 0);
                 <select value={fabric} onChange={e => setFabric(e.target.value)}>
                   {FABRICS.map(f => <option key={f}>{f}</option>)}
                 </select>
+                <small className="ds-hint">In 3D, the fabric changes how the cloth surface looks: cotton is matte with a visible weave, polyester is smoother with a slight sheen.</small>
               </label>
+              {fspec ? (
+                <div className="ds-fabric" aria-live="polite">
+                  <div className="ds-fabric-head">
+                    <strong>{fabric}</strong>
+                    <span className={fspec.confirmed ? 'ds-tag ok' : 'ds-tag'}>{fspec.confirmed ? 'KSMG specification' : 'Typical values'}</span>
+                  </div>
+                  {fspec.good && <p className="ds-fabric-good">{fspec.good}</p>}
+                  <dl>
+                    {FABRIC_FIELDS.filter(([k]) => fspec[k]).map(([k, n]) => (
+                      <div key={k}><dt>{n}</dt><dd>{fspec[k]}</dd></div>
+                    ))}
+                  </dl>
+                  {!fspec.confirmed && <small className="ds-hint">Final GSM, composition and finish are confirmed by our team with the quotation.</small>}
+                </div>
+              ) : (
+                <p className="ds-hint">Our sales team will suggest the right fabric for your use.</p>
+              )}
+              {garment === 'Pair' && (
+                <div className="ds-field">
+                  <span>Shirt style</span>
+                  <label className="ds-inline">Collar
+                    <select value={collarStyle} onChange={e => setCollarStyle(e.target.value)}>
+                      {COLLAR_STYLES.map(c => <option key={c}>{c}</option>)}
+                    </select>
+                  </label>
+                  <div className="ds-inline">
+                    <span>Sleeves</span>
+                    <div className="ds-seg" role="group" aria-label="Sleeve length">
+                      {SLEEVE_STYLES.map(v => (
+                        <button key={v} type="button" aria-pressed={sleeve === v} className={sleeve === v ? 'on' : ''} onClick={() => setSleeve(v)}>{v}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <small className="ds-hint">Sleeve length shows in 3D. The 3D model shows the classic collar; the collar style you pick goes on the tech pack and quotation.</small>
+                </div>
+              )}
             </>
           )}
 
@@ -393,9 +619,9 @@ const orderSum = orderLines.reduce((a, l) => a + l.lineTotal, 0);
               )}
               {garment === 'Pair' && (
                 <>
-                  <div className="ds-mode">
-                    <button type="button" className={part === 'shirt' ? 'btn gold' : 'btn ghost'} onClick={() => setPart('shirt')}>Shirt</button>
-                    <button type="button" className={part === 'pant' ? 'btn gold' : 'btn ghost'} onClick={() => setPart('pant')}>Pant and skirt</button>
+                  <div className="ds-seg" role="group" aria-label="Which garment to colour" style={{ alignSelf: 'start' }}>
+                    <button type="button" aria-pressed={part === 'shirt'} className={part === 'shirt' ? 'on' : ''} onClick={() => setPart('shirt')}>Shirt</button>
+                    <button type="button" aria-pressed={part === 'pant'} className={part === 'pant' ? 'on' : ''} onClick={() => setPart('pant')}>Pant and skirt</button>
                   </div>
                   {part === 'shirt' ? (
                     <>
@@ -415,15 +641,20 @@ const orderSum = orderLines.reduce((a, l) => a + l.lineTotal, 0);
                       </div>
                       <div className="ds-field">
                         <span>Shirt textures{shirtTex ? ': ' + (SHIRT_TEX.find(t => t[1] === shirtTex) || ['', ''])[0] : ''}</span>
-                        <div className="ds-swatches" style={{ flexWrap: 'nowrap', overflowX: 'auto', paddingBottom: 8 }}>
+                        <div className="ds-strip">
                           {SHIRT_TEX.map(([n, u]) => (
-                            <button key={n} type="button" title={n} aria-label={'Shirt texture ' + n}
-                              className={shirtTex === u ? 'sw on' : 'sw'} style={{ flexShrink: 0, padding: 0, overflow: 'hidden' }}
+                            <button key={n} type="button" title={n} aria-label={'Shirt texture ' + n} aria-pressed={shirtTex === u}
+                              className={shirtTex === u ? 'sw sw-tex on' : 'sw sw-tex'}
                               onClick={() => setShirtTex(u)}>
-                              <img src={u.replace('/textures/', '/textures/thumbs/')} alt="" loading="lazy" decoding="async" width="36" height="36" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%', display: 'block' }} />
+                              <img src={u.replace('/textures/', '/textures/thumbs/')} alt="" loading="lazy" decoding="async" width="38" height="38" />
                             </button>
                           ))}
                         </div>
+                      </div>
+                      <div className="ds-field">
+                        <span>Contrast panels {panelsOn && <button type="button" className="ds-link-btn" onClick={() => setPanels(NO_PANELS)}>Clear all</button>}</span>
+                        {PANEL_PARTS.map(([k, n]) => <PanelRow key={k} label={n} value={panels[k]} onChange={v => setPanel(k, v)} />)}
+                        <small className="ds-hint">"=" keeps the shirt colour or fabric. Panels show in the 3D preview.</small>
                       </div>
                     </>
                   ) : (
@@ -444,13 +675,13 @@ const orderSum = orderLines.reduce((a, l) => a + l.lineTotal, 0);
                       </div>
                       <div className="ds-field">
                         <span>Pant and skirt textures{pantTex ? ': ' + (PANT_TEX.find(t => t[1] === pantTex) || ['', ''])[0] : ''}</span>
-                        <div className="ds-swatches" style={{ flexWrap: 'nowrap', overflowX: 'auto', paddingBottom: 8 }}>
+                        <div className="ds-strip">
                           {PANT_TEX.map(([n, u]) => (
-                            <button key={n} type="button" title={n} aria-label={'Pant texture ' + n}
-                            className={pantTex === u ? 'sw on' : 'sw'} style={{ flexShrink: 0, padding: 0, overflow: 'hidden' }}
-                            onClick={() => setPantTex(u)}>
-                            <img src={u.replace('/textures/', '/textures/thumbs/')} alt="" loading="lazy" decoding="async" width="36" height="36" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%', display: 'block' }} />
-                          </button>
+                            <button key={n} type="button" title={n} aria-label={'Pant texture ' + n} aria-pressed={pantTex === u}
+                              className={pantTex === u ? 'sw sw-tex on' : 'sw sw-tex'}
+                              onClick={() => setPantTex(u)}>
+                              <img src={u.replace('/textures/', '/textures/thumbs/')} alt="" loading="lazy" decoding="async" width="38" height="38" />
+                            </button>
                           ))}
                         </div>
                       </div>
@@ -468,22 +699,47 @@ const orderSum = orderLines.reduce((a, l) => a + l.lineTotal, 0);
               </label>
               {logoUrl && (
                 <div className="ds-field">
-                  <span>Logo position and size</span>
-                  <div className="ds-mode">
-                    <button type="button" className="btn ghost" title="Left" aria-label="Move left" onClick={() => setLogoPos(p => ({ ...p, dx: Math.max(-60, p.dx - 4) }))}>←</button>
-                    <button type="button" className="btn ghost" title="Right" aria-label="Move right" onClick={() => setLogoPos(p => ({ ...p, dx: Math.min(60, p.dx + 4) }))}>→</button>
-                    <button type="button" className="btn ghost" title="Up" aria-label="Move up" onClick={() => setLogoPos(p => ({ ...p, dy: Math.max(-60, p.dy - 4) }))}>↑</button>
-                    <button type="button" className="btn ghost" title="Down" aria-label="Move down" onClick={() => setLogoPos(p => ({ ...p, dy: Math.min(100, p.dy + 4) }))}>↓</button>
-                    <button type="button" className="btn ghost" title="Smaller" aria-label="Smaller logo" onClick={() => setLogoPos(p => ({ ...p, size: Math.max(12, p.size - 4) }))}>−</button>
-                    <button type="button" className="btn ghost" title="Bigger" aria-label="Bigger logo" onClick={() => setLogoPos(p => ({ ...p, size: Math.min(80, p.size + 4) }))}>+</button>
-                    <button type="button" className="btn ghost" title="Reset" aria-label="Reset logo" onClick={() => setLogoPos({ dx: 0, dy: 0, size: 32 })}>↺</button>
+                  <span>Logo position, size and angle{garment === 'Pair' ? (logoFor === 'girl' ? ': girls shirt' : ': boys shirt') : ''}</span>
+                  {garment === 'Pair' && (
+                    <div className="ds-logo-for">
+                      <div className="ds-seg" role="group" aria-label="Which shirt to adjust">
+                        <button type="button" aria-pressed={logoFor === 'boy'} className={logoFor === 'boy' ? 'on' : ''} onClick={() => setLogoFor('boy')}>Boys shirt</button>
+                        <button type="button" aria-pressed={logoFor === 'girl'} className={logoFor === 'girl' ? 'on' : ''} onClick={() => setLogoFor('girl')}>Girls shirt</button>
+                      </div>
+                      <button type="button" className="ds-link-btn" onClick={() => logoFor === 'girl' ? setLogoPos(logoPosGirl) : setLogoPosGirl(logoPos)}>
+                        Copy to {logoFor === 'girl' ? 'boys' : 'girls'} shirt
+                      </button>
+                    </div>
+                  )}
+                  <div className="ds-logo-ctrl">
+                    <div className="ds-pad" role="group" aria-label="Move logo">
+                      <button type="button" className="up" title="Up" aria-label="Move up" onClick={() => setEditPos(p => ({ ...p, dy: Math.max(-60, p.dy - 4) }))}>↑</button>
+                      <button type="button" className="left" title="Left" aria-label="Move left" onClick={() => setEditPos(p => ({ ...p, dx: Math.max(-60, p.dx - 4) }))}>←</button>
+                      <button type="button" className="mid" title="Reset" aria-label="Reset logo" onClick={() => setEditPos(LOGO_START)}>↺</button>
+                      <button type="button" className="right" title="Right" aria-label="Move right" onClick={() => setEditPos(p => ({ ...p, dx: Math.min(60, p.dx + 4) }))}>→</button>
+                      <button type="button" className="down" title="Down" aria-label="Move down" onClick={() => setEditPos(p => ({ ...p, dy: Math.min(100, p.dy + 4) }))}>↓</button>
+                    </div>
+                    <div className="ds-logo-side">
+                      <div className="ds-pill" role="group" aria-label="Logo size">
+                        <button type="button" title="Smaller" aria-label="Smaller logo" onClick={() => setEditPos(p => ({ ...p, size: Math.max(12, p.size - 4) }))}>−</button>
+                        <span>Size {editPos.size}</span>
+                        <button type="button" title="Bigger" aria-label="Bigger logo" onClick={() => setEditPos(p => ({ ...p, size: Math.min(80, p.size + 4) }))}>+</button>
+                      </div>
+                      <div className="ds-pill" role="group" aria-label="Logo angle">
+                        <button type="button" title="Turn left" aria-label="Turn logo left" onClick={() => setEditPos(p => ({ ...p, rot: Math.max(-45, (p.rot || 0) - 5) }))}>⟲</button>
+                        <span>{editPos.rot || 0}°</span>
+                        <button type="button" title="Turn right" aria-label="Turn logo right" onClick={() => setEditPos(p => ({ ...p, rot: Math.min(45, (p.rot || 0) + 5) }))}>⟳</button>
+                      </div>
+                    </div>
                   </div>
+                  <small className="ds-hint">In 3D the logo is printed onto the cloth and follows its curves.</small>
                 </div>
               )}
               <label>Decoration
                 <select value={decoration} onChange={e => setDecoration(e.target.value)}>
                   {DECORATION.map(d => <option key={d}>{d}</option>)}
                 </select>
+                {logoUrl && <small className="ds-hint">Switch to 3D and zoom in to see the finish: raised threads for embroidery, matte ink for screen print, smooth gloss for heat transfer.</small>}
               </label>
             </>
           )}
@@ -529,43 +785,49 @@ const orderSum = orderLines.reduce((a, l) => a + l.lineTotal, 0);
           )}
         </div>
 
-        <div className="ds-preview">
-          <div className="ds-mode">
-            <button type="button" className="btn ghost" title="Undo" aria-label="Undo" disabled={hist.i <= 0} onClick={undo}>↶</button>
-            <button type="button" className="btn ghost" title="Redo" aria-label="Redo" disabled={hist.i >= hist.list.length - 1} onClick={redo}>↷</button>
-          </div>
-          <div className="ds-mode">
-            <button type="button" aria-pressed={mode === '2d'} className={mode === '2d' ? 'btn gold' : 'btn ghost'} onClick={() => setMode('2d')}>2D</button>
-            {threeOn && <button type="button" className={mode === '3d' ? 'btn gold' : 'btn ghost'} onClick={() => setMode('3d')}>3D</button>}
+        <div className="ds-preview ds-panel">
+          <div className="ds-toolbar">
+            <div className="ds-pill" role="group" aria-label="History">
+              <button type="button" title="Undo" aria-label="Undo" disabled={hist.i <= 0} onClick={undo}>↶</button>
+              <button type="button" title="Redo" aria-label="Redo" disabled={hist.i >= hist.list.length - 1} onClick={redo}>↷</button>
+            </div>
+            <p className="ds-badge">Conceptual preview</p>
+            <div className="ds-seg" role="group" aria-label="Preview type">
+              <button type="button" aria-pressed={mode === '2d'} className={mode === '2d' ? 'on' : ''} onClick={() => setMode('2d')}>2D</button>
+              {threeOn && <button type="button" aria-pressed={mode === '3d'} className={mode === '3d' ? 'on' : ''} onClick={() => setMode('3d')}>3D</button>}
+            </div>
           </div>
           {threeOn && mode === '3d' ? (
-          <Boundary onFail={() => setMode('2d')}><Suspense fallback={<p className="ds-note small">Loading 3D...</p>}>
-              <Garment3D garment={garment} colour={colour} pattern={pattern} logoUrl={logoOk !== 'bad' ? logoUrl : ''}logoPos={logoPos} shirtColour={shirtColour} shirtPattern={shirtPattern} pantColour={pantColour} shirtTex={shirtTex} pantTex={pantTex} />
+          <Boundary onFail={() => setMode('2d')}><Suspense fallback={<div className="g3d-loading" role="status"><span className="g3d-spin" aria-hidden="true" />Loading 3D preview…</div>}>
+              <Garment3D garment={garment} colour={colour} pattern={pattern} fabric={fabric} logoUrl={logoOk !== 'bad' ? logoUrl : ''} logoPos={logoPos} logoPosGirl={logoPosGirl} decoration={decoration} shirtPanels={panels} sleeve={sleeve} shirtColour={shirtColour} shirtPattern={shirtPattern} pantColour={pantColour} shirtTex={shirtTex} pantTex={pantTex} />
                         </Suspense></Boundary>
           ) : (
             <svg viewBox="0 0 200 220" role="img" aria-label={`Conceptual preview of a ${colourName} ${garment}`}>
               <GarmentArt garment={garment === 'Pair' ? 'Shirt' : garment} colour={colour} stroke={strokeColour} pattern={pattern} />
               {logoUrl && logoOk !== 'bad' && (
-                <image href={logoUrl} x={lx + logoPos.dx} y={ly + logoPos.dy} width={logoPos.size} height={logoPos.size} preserveAspectRatio="xMidYMid meet" onError={() => setLogoOk('bad')} />
+                <image href={logoUrl} x={lx + logoPos.dx} y={ly + logoPos.dy} width={logoPos.size} height={logoPos.size} preserveAspectRatio="xMidYMid meet" onError={() => setLogoOk('bad')}
+                  transform={`rotate(${logoPos.rot || 0} ${lx + logoPos.dx + logoPos.size / 2} ${ly + logoPos.dy + logoPos.size / 2})`} />
               )}
             </svg>
           )}
-          <p className="ds-badge">CONCEPTUAL PREVIEW</p>
 
-          <div className="ds-mode">
+          <div className="ds-total" aria-live="polite">
+            <div><span>Total quantity</span><strong>{total}</strong></div>
+            {price ? (
+              <>
+                <div><span>Per piece</span><strong>₹{price.unitNet.toLocaleString('en-IN')}</strong>{price.discount > 0 && <small>{Math.round(price.discount * 100)}% bulk discount</small>}</div>
+                <div><span>Estimated total</span><strong>₹{price.total.toLocaleString('en-IN')}</strong><small>Indicative only</small></div>
+              </>
+            ) : (
+              <div className="ds-total-hint"><small>Enter sizes in step 4 to see an estimate.</small></div>
+            )}
+          </div>
+
+          <div className="ds-actions">
             <button type="button" className="btn ghost" onClick={addToOrder}>Add this garment to order</button>
             <Link to="/quote?design=1" onClick={rememberDesign} className="btn gold">Request review and quotation</Link>
           </div>
           {msg && !user && <p className="ds-note small" role="status">{msg}</p>}
-
-          <p className="ds-note small">
-            <strong>Total quantity: {total}</strong>
-            {price && (
-              <> | Estimated: ₹{price.unitNet.toLocaleString('en-IN')} per piece
-              {price.discount > 0 ? ` (${Math.round(price.discount * 100)}% bulk discount)` : ''}
-              , total about ₹{price.total.toLocaleString('en-IN')}. Indicative only.</>
-            )}
-          </p>
 
           <details>
             <summary>Design summary</summary>
@@ -573,6 +835,7 @@ const orderSum = orderLines.reduce((a, l) => a + l.lineTotal, 0);
               <li>Garment: {garment} ({colourName})</li>
               <li>Fabric: {fabric}</li>
               <li>Pattern: {pattern}</li>
+              {shirtStyleLines().map(l => <li key={l}>{l}</li>)}
               <li>Decoration: {decoration}</li>
               <li>Logo: {logoUrl ? 'added' : 'none'}</li>
             </ul>
@@ -614,6 +877,18 @@ const orderSum = orderLines.reduce((a, l) => a + l.lineTotal, 0);
           )}
 
           <details>
+            <summary>Share for approval</summary>
+            <div className="ds-save">
+              <p className="ds-hint">Send this link to your principal, manager or client. They can see the design in 3D and approve it or ask for changes. The logo is not included in the link; share the logo file separately.</p>
+              <div className="ds-actions" style={{ justifyContent: 'flex-start' }}>
+                <button type="button" className="btn gold" onClick={copyLink}>Copy share link</button>
+                {typeof navigator !== 'undefined' && navigator.share && <button type="button" className="btn ghost" onClick={nativeShare}>Share…</button>}
+              </div>
+              {shareMsg && <p className="ds-hint" role="status">{shareMsg}</p>}
+            </div>
+          </details>
+
+          <details>
             <summary>Save design{designs.length > 0 ? ` (${designs.length} saved)` : ''}</summary>
             {user ? (
               <div className="ds-save">
@@ -638,7 +913,7 @@ const orderSum = orderLines.reduce((a, l) => a + l.lineTotal, 0);
                 )}
                 {designs.length > 0 && (
                   <>
-                    <button type="button" className="btn ghost" onClick={() => setCmp(c => [...c.filter(x => x.id !== 'current'), { id: 'current', name: 'Current (on screen)', industry, garment, fabric, colour, decoration, pattern, sizes: qty, extra: { shirtColour, shirtTex, pantColour, pantTex } }].slice(-2))}>Add current design to compare</button>
+                    <button type="button" className="btn ghost" onClick={() => setCmp(c => [...c.filter(x => x.id !== 'current'), { id: 'current', name: 'Current (on screen)', industry, garment, fabric, colour, decoration, pattern, sizes: qty, extra: designExtra() }].slice(-2))}>Add current design to compare</button>
                     {cmp.length === 2 && (
                       <>
                         <h3>Compare designs</h3>
@@ -673,7 +948,7 @@ const orderSum = orderLines.reduce((a, l) => a + l.lineTotal, 0);
                                 <div key={d.id}>
                                   <strong>{d.name}</strong>
                                   <Boundary><Suspense fallback={<p className="ds-note small">Loading 3D...</p>}>
-                                    <Garment3D garment={d.garment} colour={d.colour} pattern={d.pattern || 'Plain'} shirtColour={e.shirtColour || '#7fb2e5'} pantColour={e.pantColour || '#0a1330'} shirtTex={e.shirtTex || ''} pantTex={e.pantTex || ''} />
+                                    <Garment3D garment={d.garment} colour={d.colour} pattern={d.pattern || 'Plain'} fabric={d.fabric} shirtPanels={e.panels} sleeve={(e.style || {}).sleeve || 'Half'} shirtColour={e.shirtColour || '#7fb2e5'} pantColour={e.pantColour || '#0a1330'} shirtTex={e.shirtTex || ''} pantTex={e.pantTex || ''} />
                                   </Suspense></Boundary>
                                 </div>
                               );
@@ -691,7 +966,7 @@ const orderSum = orderLines.reduce((a, l) => a + l.lineTotal, 0);
                           <span className="rfq-actions">
                             <button type="button" className="btn ghost" onClick={() => openDesign(d)}>Open</button>
                             <button type="button" className="btn ghost" onClick={() => setCmp(c => c.find(x => x.id === d.id) ? c.filter(x => x.id !== d.id) : [...c, d].slice(-2))}>{cmp.find(x => x.id === d.id) ? 'Selected' : 'Compare'}</button>
-                            <button type="button" className="btn ghost" onClick={() => downloadTechPack(d, (INDUSTRIES.find(i => i.slug === d.industry) || {}).name).catch(() => setMsg('Could not create the tech pack.'))}>Tech pack</button>
+                            <button type="button" className="btn ghost" onClick={() => downloadTechPack(d, (INDUSTRIES.find(i => i.slug === d.industry) || {}).name, { fabricSpec: fabricSpec(d.fabric, fabricOwn) }).catch(() => setMsg('Could not create the tech pack.'))}>Tech pack</button>
                             <button type="button" className="btn ghost" onClick={() => removeDesign(d)}>Delete</button>
                           </span>
                         </li>

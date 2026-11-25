@@ -1,11 +1,11 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { Canvas, useThree, useFrame } from '@react-three/fiber';
-// import { OrbitControls, ContactShadows, useGLTF } from '@react-three/drei';
-import { OrbitControls, ContactShadows, useGLTF, useTexture } from '@react-three/drei';
+import { Canvas, useThree } from '@react-three/fiber';
+import { OrbitControls, ContactShadows, useGLTF } from '@react-three/drei';
 import { SVGLoader } from 'three/examples/jsm/loaders/SVGLoader.js';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { BODY, garmentSvg } from '../data/garmentArt.js';
+import { StudioLights, FabricRig, LogoDecal } from './studio3d.jsx';
 
 const S = 0.011;
 const DEPTH = 30;
@@ -72,7 +72,6 @@ function Garment({ garment, colour, pattern }) {
       t.anisotropy = 8;
       setTex(t);
     };
-    console.log('3D colour:', colour, garment, pattern);
     img.onerror = e => console.warn('3D svg image failed', e);
     img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
     return () => { dead = true; if (t) t.dispose(); };
@@ -165,37 +164,6 @@ function PantsModel({ colour, pattern }) {
     <group scale={k}>
       <primitive object={model} position={[-c.x, -c.y, -c.z]} />
     </group>
-  );
-}
-
-function LogoPlane({ url, pos }) {
-  const tex = useTexture(url);
-  const scene = useThree(s => s.scene);
-  const [place, setPlace] = useState(null);
-  useEffect(() => {
-    tex.colorSpace = THREE.SRGBColorSpace;
-    scene.updateMatrixWorld(true);
-    const rc = new THREE.Raycaster(
-      new THREE.Vector3(0.35 + pos.dx * 0.012, 0.4 - pos.dy * 0.012, 5),
-      new THREE.Vector3(0, 0, -1), 0, 10
-    );
-    const hit = rc.intersectObject(scene, true).find(h => h.object.isMesh && h.face);
-    if (!hit) { setPlace(null); return; }
-    const n = hit.face.normal.clone().transformDirection(hit.object.matrixWorld);
-    if (n.z < 0) n.negate();
-    const p = hit.point.clone().add(n.clone().multiplyScalar(0.01));
-    const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), n);
-    setPlace({ p, q });
-  }, [tex, scene, pos.dx, pos.dy]);
-  if (!place) return null;
-  const img = tex.image;
-  const asp = img && img.width ? img.height / img.width : 1;
-  const w = pos.size * 0.01;
-  return (
-    <mesh position={place.p} quaternion={place.q} raycast={() => null}>
-      <planeGeometry args={[w, w * asp]} />
-      <meshBasicMaterial map={tex} transparent toneMapped={false} polygonOffset polygonOffsetFactor={-4} />
-    </mesh>
   );
 }
 
@@ -445,20 +413,6 @@ function BlazerModel({ colour, pattern }) {
   );
 }
 
-function ShadowRig() {
-  const scene = useThree(s => s.scene);
-  useFrame(() => {
-    scene.traverse(o => {
-      if (o.isMesh && !o.userData.shadowSet && o.material && !o.material.transparent) {
-        o.castShadow = true;
-        o.receiveShadow = true;
-        o.userData.shadowSet = true;
-      }
-    });
-  });
-  return null;
-}
-
 function ChefCoatModel({ colour, pattern }) {
   const { scene } = useGLTF('/models/chefcoat/chefcoat.glb');
   const { model, k, c } = useMemo(() => {
@@ -624,8 +578,104 @@ function CoverallModel({ colour }) {
 }
 
 
-function SetPart({ url, colour, pattern = 'Plain', repeat = 3, height, y, wide = 1, pocket = false, texUrl = '' }) {
+// ---- School shirt panels (collar / sleeves / cuffs) -------------------------
+// The school shirt models are one mesh, normalised to about -0.5..0.5 in
+// height. These limits (in the model's own space) mark where each part is.
+const SHIRT_PANEL_GLSL = `
+  float ksSide = abs(vObjPos.x);
+  float ksSleeve = step(0.265, ksSide) * step(0.03, vObjPos.y);
+  float ksCuff = ksSleeve * step(vObjPos.y, 0.128 - 0.25 * (ksSide - 0.27)) * uCuffOn;
+  float ksCollar = step(0.43, vObjPos.y) * step(ksSide, 0.15)
+    + step(0.37, vObjPos.y) * step(ksSide, 0.11) * step(0.035, vObjPos.z);
+  if (uPanelOn.x > 0.5 && ksCollar > 0.5) diffuseColor.rgb = uCollar;
+  else if (uPanelOn.z > 0.5 && ksCuff > 0.5) diffuseColor.rgb = uCuff;
+  else if (uPanelOn.y > 0.5 && ksSleeve > 0.5) diffuseColor.rgb = uSleeve;
+`;
+const TRI_TILE = 0.12; // fabric swatch size on the garment: smaller = finer checks
+
+function panelUniforms(mat) {
+  if (!mat.userData.ks) {
+    mat.userData.ks = {
+      uPanelOn: { value: new THREE.Vector3() },
+      uCollar: { value: new THREE.Color() },
+      uSleeve: { value: new THREE.Color() },
+      uCuff: { value: new THREE.Color() },
+      uCuffOn: { value: 1 },
+    };
+  }
+  return mat.userData.ks;
+}
+
+// tri: map the fabric swatch in world space (no stretching on any model).
+// panel: recolour collar / sleeves / cuffs of the school shirt.
+function installShader(mat, { tri, panel }) {
+  const ks = panel ? panelUniforms(mat) : null;
+  mat.onBeforeCompile = shader => {
+    if (tri) {
+      shader.uniforms.uTriScale = { value: 1 / TRI_TILE };
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying vec3 vTriPos;\nvarying vec3 vTriNrm;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvTriPos = (modelMatrix * vec4(transformed, 1.0)).xyz;\nvTriNrm = normalize(mat3(modelMatrix) * normal);');
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', '#include <common>\nvarying vec3 vTriPos;\nvarying vec3 vTriNrm;\nuniform float uTriScale;')
+        .replace('#include <map_fragment>', `
+#ifdef USE_MAP
+  vec3 an = abs(normalize(vTriNrm));
+  vec2 tuv = (an.z >= an.x) ? vTriPos.xy : vTriPos.zy;
+  vec4 sampledDiffuseColor = texture2D(map, tuv * uTriScale);
+  diffuseColor *= sampledDiffuseColor;
+#endif
+`);
+    }
+    if (panel) {
+      Object.assign(shader.uniforms, ks);
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying vec3 vObjPos;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvObjPos = position;');
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', '#include <common>\nvarying vec3 vObjPos;\nuniform vec3 uPanelOn;\nuniform vec3 uCollar;\nuniform vec3 uSleeve;\nuniform vec3 uCuff;\nuniform float uCuffOn;')
+        .replace('#include <color_fragment>', '#include <color_fragment>\n' + SHIRT_PANEL_GLSL);
+    }
+  };
+  mat.customProgramCacheKey = () => `ks-${tri ? 1 : 0}-${panel ? 1 : 0}`;
+}
+
+// Long sleeves for the half-sleeve school shirt: a tapered sleeve from the
+// short-sleeve opening down to the wrist, finished with a cuff.
+// Values are in the shirt model's own space (see SHIRT_PANEL_GLSL).
+function addFullSleeves(mesh) {
+  const L = 0.46;
+  const made = [];
+  [1, -1].forEach(side => {
+    const dir = new THREE.Vector3(0.12 * side, -1, 0).normalize();
+    // Starts a little inside the short sleeve so the join is hidden under its hem.
+    const start = new THREE.Vector3(0.318 * side, 0.13, -0.046);
+    const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir);
+    const sleeve = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.07, 0.05, L, 32, 6, true),
+      new THREE.MeshStandardMaterial({ roughness: 0.9, side: THREE.DoubleSide })
+    );
+    sleeve.position.copy(start).addScaledVector(dir, L / 2);
+    sleeve.quaternion.copy(q);
+    sleeve.userData.part = 'sleeve';
+    const cuff = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.055, 0.053, 0.065, 32, 1, false),
+      new THREE.MeshStandardMaterial({ roughness: 0.9 })
+    );
+    cuff.position.copy(start).addScaledVector(dir, L - 0.02);
+    cuff.quaternion.copy(q);
+    cuff.userData.part = 'cuff';
+    mesh.add(sleeve, cuff);
+    made.push(sleeve, cuff);
+  });
+  return made;
+}
+
+// panels: { collar, sleeves, cuffs } colours ('' = same as the shirt). Shirts only.
+// sleeve: 'Half' | 'Full'. Shirts only.
+function SetPart({ url, colour, pattern = 'Plain', repeat = 3, height, y, wide = 1, pocket = false, texUrl = '', panels = null, sleeve = 'Half' }) {
   const { scene } = useGLTF(url);
+  const full = !!panels && sleeve === 'Full';
   const { model, k } = useMemo(() => {
     const m = scene.clone(true);
     m.traverse(o => { if (o.isMesh) o.material = o.material.clone(); });
@@ -642,41 +692,46 @@ function SetPart({ url, colour, pattern = 'Plain', repeat = 3, height, y, wide =
       pk.rotation.x = -0.12;
       m.add(pk);
     }
+    if (full) {
+      let body = null;
+      m.traverse(o => { if (o.isMesh && !body) body = o; });
+      if (body) addFullSleeves(body);
+    }
     return { model: m, k: height / size.y };
-  }, [scene, height, pocket]);
+  }, [scene, height, pocket, full]);
+
+  const pc = panels || {};
+  const hasPanels = !!panels;
   useEffect(() => {
     let tex = null;
     let dead = false;
-    const TILE = 0.12; // chinna = checks chinnavi. 0.08 chinna, 0.2 peddavi
     const apply = t => {
       model.traverse(o => {
-        if (o.isMesh) {
-          o.material.map = t;
-          o.material.color.set(t ? '#ffffff' : colour);
-          if (t && texUrl) {
-            o.material.onBeforeCompile = shader => {
-              shader.uniforms.uTriScale = { value: 1 / TILE };
-              shader.vertexShader = shader.vertexShader
-                .replace('#include <common>', '#include <common>\nvarying vec3 vTriPos;\nvarying vec3 vTriNrm;')
-                .replace('#include <begin_vertex>', '#include <begin_vertex>\nvTriPos = (modelMatrix * vec4(transformed, 1.0)).xyz;\nvTriNrm = normalize(mat3(modelMatrix) * normal);');
-              shader.fragmentShader = shader.fragmentShader
-                .replace('#include <common>', '#include <common>\nvarying vec3 vTriPos;\nvarying vec3 vTriNrm;\nuniform float uTriScale;')
-                .replace('#include <map_fragment>', `
-#ifdef USE_MAP
-  vec3 an = abs(normalize(vTriNrm));
-  vec2 tuv = (an.z >= an.x) ? vTriPos.xy : vTriPos.zy;
-  vec4 sampledDiffuseColor = texture2D(map, tuv * uTriScale);
-  diffuseColor *= sampledDiffuseColor;
-#endif
-`);
-            };
-            o.material.customProgramCacheKey = () => 'tri-' + TILE;
-          } else {
-            o.material.onBeforeCompile = () => {};
-            o.material.customProgramCacheKey = () => 'plain';
+        if (!o.isMesh) return;
+        const mat = o.material;
+        const part = o.userData.part;
+        // Extra sleeve pieces take the sleeve (or cuff) panel colour when one is set.
+        const own = part === 'cuff' ? (pc.cuffs || pc.sleeves) : part === 'sleeve' ? pc.sleeves : '';
+        if (own) {
+          mat.map = null;
+          mat.color.set(own);
+          installShader(mat, { tri: false, panel: false });
+        } else {
+          mat.map = t;
+          mat.color.set(t ? '#ffffff' : colour);
+          const isBody = !part && hasPanels;
+          installShader(mat, { tri: !!(t && texUrl), panel: isBody });
+          if (isBody) {
+            const ks = panelUniforms(mat);
+            ks.uPanelOn.value.set(pc.collar ? 1 : 0, pc.sleeves ? 1 : 0, pc.cuffs ? 1 : 0);
+            ks.uCollar.value.set(pc.collar || '#ffffff');
+            ks.uSleeve.value.set(pc.sleeves || '#ffffff');
+            ks.uCuff.value.set(pc.cuffs || '#ffffff');
+            // With long sleeves the cuff sits at the wrist, not at the short-sleeve hem.
+            ks.uCuffOn.value = full ? 0 : 1;
           }
-          o.material.needsUpdate = true;
         }
+        mat.needsUpdate = true;
       });
     };
     if (texUrl) {
@@ -707,123 +762,29 @@ function SetPart({ url, colour, pattern = 'Plain', repeat = 3, height, y, wide =
       apply(tex);
     }
     return () => { dead = true; if (tex) tex.dispose(); };
-  }, [model, colour, pattern, repeat, texUrl]);
+  }, [model, colour, pattern, repeat, texUrl, hasPanels, pc.collar, pc.sleeves, pc.cuffs, full]);
   return (
     <group position={[0, y, 0]} scale={[k * wide, k, k * wide]}>
       <primitive object={model} />
     </group>
   );
 }
-function SchoolShirtModel({ colour, pattern = 'Plain', texUrl = '' }) {
+function SchoolShirtModel({ colour, pattern = 'Plain', texUrl = '', panels = null, sleeve = 'Half' }) {
   return (
     <group scale={2.6}>
-      <SetPart url="/models/school-shirt/shirt-school.glb" colour={colour} pattern={pattern} height={1} y={0} texUrl={texUrl} />
+      <SetPart url="/models/school-shirt/shirt-school.glb" colour={colour} pattern={pattern} height={1} y={0} texUrl={texUrl} panels={panels || {}} sleeve={sleeve} />
     </group>
   );
 }
-function SchoolSet({ shirtColour, pantColour, shirtPattern = 'Plain', pantPattern = 'Plain', shirtWide = 1, pantY = -0.45, shirtTex = '', pantTex = '' }) {
+function SchoolSet({ shirtColour, pantColour, shirtPattern = 'Plain', pantPattern = 'Plain', shirtWide = 1, pantY = -0.45, shirtTex = '', pantTex = '', panels = null, sleeve = 'Half' }) {
   return (
     <group scale={1.75} position={[0, 0.306, 0]}>
-      <SetPart url="/models/school-shirt/shirt-tucked.glb" colour={shirtColour} pattern={shirtPattern} repeat={4} height={0.65} y={0.225} wide={shirtWide} texUrl={shirtTex} />
+      <SetPart url="/models/school-shirt/shirt-tucked.glb" colour={shirtColour} pattern={shirtPattern} repeat={4} height={0.65} y={0.225} wide={shirtWide} texUrl={shirtTex} panels={panels} sleeve={sleeve} />
       <SetPart url="/models/school-pant/pant-school.glb" colour={pantColour} pattern={pantPattern} repeat={3} height={0.90} y={pantY} wide={1.08} texUrl={pantTex} />
     </group>
   );
 }
 
-function GirlPinafore({ colour, texUrl = '', shirtColour, shirtTex = '' }) {
-  const mats = useMemo(() => ({
-    skirt: new THREE.MeshStandardMaterial({ roughness: 0.85, side: THREE.DoubleSide }),
-    bodice: new THREE.MeshStandardMaterial({ roughness: 0.85, side: THREE.DoubleSide }),
-    band: new THREE.MeshStandardMaterial({ roughness: 0.85, side: THREE.DoubleSide }),
-  }), []);
-
-  const geos = useMemo(() => {
-    const s = new THREE.Shape();
-    s.moveTo(-0.19, 0.12);
-    s.lineTo(-0.19, 0.27);
-    s.lineTo(-0.165, 0.33);
-    s.lineTo(-0.17, 0.40);
-    s.lineTo(-0.19, 0.45);
-    s.lineTo(-0.11, 0.45);
-    s.lineTo(-0.11, 0.34);
-    s.lineTo(0.11, 0.34);
-    s.lineTo(0.11, 0.45);
-    s.lineTo(0.19, 0.45);
-    s.lineTo(0.17, 0.40);
-    s.lineTo(0.165, 0.33);
-    s.lineTo(0.19, 0.27);
-    s.lineTo(0.19, 0.12);
-    s.closePath();
-    const bodice = new THREE.ExtrudeGeometry(s, { depth: 0.16, bevelEnabled: false });
-    bodice.translate(0, 0, -0.08);
-
-    const pts = [];
-    for (let i = 0; i <= 12; i++) {
-      const t = i / 12;
-      const y = -0.52 + t * 0.64;
-      const r = 0.20 + 0.13 * Math.pow(1 - t, 1.2);
-      pts.push(new THREE.Vector2(r, y));
-    }
-    const skirt = new THREE.LatheGeometry(pts, 48);
-    const band = new THREE.CylinderGeometry(0.205, 0.205, 0.06, 48, 1, true);
-    return { bodice, skirt, band };
-  }, []);
-
-  useEffect(() => {
-    const reps = { skirt: [6, 2], bodice: [8, 8], band: [6, 1] };
-    const keys = Object.keys(mats);
-    let dead = false;
-    const made = [];
-    const paint = (key, t) => {
-      const m = mats[key];
-      m.map = t;
-      m.color.set(t ? '#ffffff' : colour);
-      m.needsUpdate = true;
-    };
-    if (texUrl) {
-      new THREE.TextureLoader().load(texUrl, base => {
-        if (dead) { base.dispose(); return; }
-        keys.forEach(key => {
-          const t = base.clone();
-          t.needsUpdate = true;
-          t.colorSpace = THREE.SRGBColorSpace;
-          t.wrapS = t.wrapT = THREE.RepeatWrapping;
-          t.repeat.set(reps[key][0], reps[key][1]);
-          t.anisotropy = 8;
-          made.push(t);
-          paint(key, t);
-        });
-      });
-    } else {
-      keys.forEach(key => paint(key, null));
-    }
-    return () => { dead = true; made.forEach(t => t.dispose()); };
-  }, [mats, colour, texUrl]);
-
-  return (
-    <group>
-      <SetPart url="/models/school-shirt/shirt-tucked.glb" colour={shirtColour} repeat={4} height={0.65} y={0.225} texUrl={shirtTex} />
-      <mesh geometry={geos.bodice} material={mats.bodice} />
-      <mesh geometry={geos.skirt} material={mats.skirt} scale={[1, 1, 0.6]} />
-      <mesh geometry={geos.band} material={mats.band} position={[0, 0.13, 0]} scale={[1, 1, 0.6]} />
-    </group>
-  );
-}
-function PairScene({ shirtColour, shirtPattern, shirtTex, pantColour, pantTex }) {
-  return (
-    <>
-      <group position={[-1.3, 0, 0]}>
-        <SchoolSet shirtColour={shirtColour} shirtPattern={shirtPattern} shirtTex={shirtTex} pantColour={pantColour} pantTex={pantTex} />
-      </group>
-      <group position={[1.3, 0, 0]}>
-        <group scale={1.75} position={[0, 0.306, 0]}>
-          <SetPart url="/models/school-shirt/shirt-tucked.glb" colour={shirtColour} repeat={4} height={0.65} y={0.225} wide={1}texUrl={shirtTex} />
-<group position={[0.015, 0, 0]}><SetPart url="/models/skirt/skirt.glb" colour={pantColour} repeat={3} height={0.72} y={-0.23} wide={1.20} texUrl={pantTex} /></group>
-</group>
-      </group>
-    </>
-  );
-}
 function BlazerSchoolModel({ colour, height = 1.15, y = 0.725, wide = 1.58 }) {
   const { scene } = useGLTF('/models/blazer_school/blazer_school.glb');
   const { model, k } = useMemo(() => {
@@ -854,13 +815,6 @@ function BlazerSchoolModel({ colour, height = 1.15, y = 0.725, wide = 1.58 }) {
   );
 }
 
-function BlazerSetOld({ blazerColour, shirtColour, shirtPattern }) {
-  return (
-    <><SchoolSet shirtColour={shirtColour} shirtPattern={shirtPattern} pantColour="#5a5f6b" shirtWide={0.88} />
-      <BlazerSchoolModel colour={blazerColour} />
-    </>
-  );
-}
 function BlazerSet({ blazerColour, shirtColour, shirtPattern, pantColour = '#5a5f6b' }) {
   const FIT_W = 1.4; // blazer width vs shirt (peddadi chesthe broad)
   const LEN = 0.85;   // blazer length (peddadi chesthe longer)
@@ -879,23 +833,6 @@ function BlazerSet({ blazerColour, shirtColour, shirtPattern, pantColour = '#5a5
     <>
       <SchoolSet shirtColour={shirtColour} shirtPattern={shirtPattern} pantColour={pantColour} shirtWide={0.60} pantY={-0.48}/>
       <BlazerSchoolModel colour={blazerColour} height={fit.height} y={fit.y} wide={fit.wide} />
-    </>
-  );
-}
-
-function BlazerPair({ view, colour, shirtColour, shirtPattern }) {
-  if (view === 'side') {
-    return <BlazerSet blazerColour={colour} shirtColour={shirtColour} shirtPattern={shirtPattern} />;
-  }
-  const d = view === 'back' ? -1 : 1;
-  return (
-    <>
-      <group position={[-1.5 * d, 0, 0]}>
-        <BlazerSchoolModel colour={colour} height={1.9} y={0} wide={1} />
-      </group>
-      <group position={[1.3 * d, 0, 0]}>
-        <BlazerSet blazerColour={colour} shirtColour={shirtColour} shirtPattern={shirtPattern} />
-      </group>
     </>
   );
 }
@@ -926,178 +863,155 @@ function GownModel({ colour }) {
   );
 }
 
-function CameraRig({ view, controls }) {
+function CameraRig({ view, controls, dist = 6 }) {
   const { camera } = useThree();
   useEffect(() => {
-    const pos = view === 'back' ? [0, 0.3, -6] : view === 'side' ? [6, 0.3, 0] : [0, 0.3, 6];
+    const pos = view === 'back' ? [0, 0.3, -dist] : view === 'side' ? [dist, 0.3, 0] : [0, 0.3, dist];
     camera.position.set(...pos);
     camera.lookAt(0, 0, 0);
     if (controls.current) controls.current.update();
-  }, [view, camera, controls]);
+  }, [view, camera, controls, dist]);
   return null;
 }
 
-export default function Garment3D({ garment = 'Shirt', colour, pattern = 'Plain', logoUrl = '', logoPos = { dx: 0, dy: 0, size: 32 }, shirtColour = '#ffffff', shirtPattern = 'Plain', pantColour = '#5a5f6b', shirtTex = '', pantTex = '' }){
-  const [blazerOnly, setBlazerOnly] = useState(false);
+const VIEWS = [['front', 'Front'], ['back', 'Back'], ['side', 'Side']];
+
+// Front / Back / Side switch that sits on top of the 3D preview.
+function ViewSwitch({ view, setView }) {
+  return (
+    <div className="g3d-views" role="group" aria-label="Camera view">
+      {VIEWS.map(([v, n]) => (
+        <button key={v} type="button" aria-pressed={view === v} aria-label={`${n} view`}
+          className={view === v ? 'on' : ''} onClick={() => setView(v)}>{n}</button>
+      ))}
+    </div>
+  );
+}
+
+// Scene pieces shared by every preview: ground shadow and the fabric look.
+function StageExtras({ fabric, shadows }) {
+  return (
+    <>
+      <ContactShadows position={[0, -1.25, 0]} opacity={0.42} scale={8} blur={2.8} far={3} resolution={512} color="#1c2340" />
+      <FabricRig fabric={fabric} shadows={shadows} />
+    </>
+  );
+}
+
+export default function Garment3D({ garment = 'Shirt', colour, pattern = 'Plain', fabric = 'Cotton', logoUrl = '', logoPos = { dx: 0, dy: 0, size: 32, rot: 0 }, logoPosGirl = null, decoration = 'None', shirtPanels = null, sleeve = 'Half', shirtColour = '#ffffff', shirtPattern = 'Plain', pantColour = '#5a5f6b', shirtTex = '', pantTex = '' }) {
   const [view, setView] = useState('front');
   const controls = useRef();
-    if (garment === 'Pair') {
-    return (
-      <div>
-        <div className="g3d-pair">
+  const logo = (extra = {}) => logoUrl
+    ? <LogoDecal key={garment + logoUrl} url={logoUrl} decoration={decoration} pos={{ ...logoPos, ...extra }} />
+    : null;
+  // The school shirt sits smaller in the set previews, so the logo is shifted and scaled to its chest.
+  const onSetShirt = p => ({ dx: p.dx - 14, dy: p.dy - 40, size: p.size * 0.7, rot: p.rot || 0 });
+  const small = onSetShirt(logoPos);
+  const girl = onSetShirt(logoPosGirl || logoPos);
 
-          
-          <MiniCanvas view={view}>
-            <SchoolSet shirtColour={shirtColour} shirtPattern={shirtPattern} shirtTex={shirtTex} pantColour={pantColour} pantTex={pantTex} />
-            {logoUrl && <LogoPlane url={logoUrl} pos={{ ...logoPos, dx: logoPos.dx - 14, dy: logoPos.dy - 40, size: logoPos.size * 0.7 }} />}
-          </MiniCanvas>
-          <MiniCanvas view={view}>
-            <group scale={1.75} position={[0, 0.306, 0]}>
-              <SetPart url="/models/school-shirt/shirt-tucked.glb" colour={shirtColour} repeat={4} height={0.65} y={0.225} wide={1} texUrl={shirtTex} />
-              <group position={[0.015, 0, 0]}><SetPart url="/models/skirt/skirt.glb" colour={pantColour} repeat={3} height={0.72} y={-0.23} wide={1.20} texUrl={pantTex} /></group>
-            </group>
-            {/* {logoUrl && <LogoPlane url={logoUrl} pos={{ ...logoPos, dy: logoPos.dy - 40 }} />} */}
-            {logoUrl && <LogoPlane url={logoUrl} pos={{ ...logoPos, dx: logoPos.dx - 20, dy: logoPos.dy - 50 }} />}
-          </MiniCanvas>
-        </div>
-        <div className="ds-mode">
-          {['front', 'back', 'side'].map(v => (
-            <button key={v} type="button" aria-pressed={view === v} className={view === v ? 'btn gold' : 'btn ghost'} onClick={() => setView(v)}>
-              {v.charAt(0).toUpperCase() + v.slice(1)}
-            </button>
-          ))}
-        </div>
-        <p className="ds-note small">Drag to rotate. Scroll or pinch to zoom. Right-click drag (or two fingers) to move. Each preview moves on its own.</p>
-      </div>
-    );
-  }
-    if (garment === 'Blazer') {
+  if (garment === 'Pair' || garment === 'Blazer') {
     return (
-      <div>
-        <div className="g3d-pair">
-          <MiniCanvas view={view}>
-            <BlazerSchoolModel colour={colour} height={1.9} y={0} wide={1} />
-            {logoUrl && <LogoPlane url={logoUrl} pos={logoPos} />}
-          </MiniCanvas>
-          <MiniCanvas view={view}>
-            <BlazerSet blazerColour={colour} shirtColour={shirtColour} shirtPattern={shirtPattern} pantColour={pantColour} />
-            {logoUrl && <LogoPlane url={logoUrl} pos={{ ...logoPos, dx: logoPos.dx - 14, dy: logoPos.dy - 40, size: logoPos.size * 0.7 }} />}
-          </MiniCanvas>
+      <div className="g3d-wrap">
+        <div className="g3d-stage">
+          <div className="g3d-pair">
+            {garment === 'Pair' ? (
+              <>
+                <MiniCanvas view={view} fabric={fabric} label="Boys: shirt and trousers">
+                  <SchoolSet shirtColour={shirtColour} shirtPattern={shirtPattern} shirtTex={shirtTex} pantColour={pantColour} pantTex={pantTex} panels={shirtPanels || {}} sleeve={sleeve} />
+                  {logo(small)}
+                </MiniCanvas>
+                <MiniCanvas view={view} fabric={fabric} label="Girls: shirt and skirt">
+                  <group scale={1.75} position={[0, 0.306, 0]}>
+                    <SetPart url="/models/school-shirt/shirt-tucked.glb" colour={shirtColour} repeat={4} height={0.65} y={0.225} wide={1} texUrl={shirtTex} panels={shirtPanels || {}} sleeve={sleeve} />
+                    <group position={[0.015, 0, 0]}><SetPart url="/models/skirt/skirt.glb" colour={pantColour} repeat={3} height={0.72} y={-0.23} wide={1.20} texUrl={pantTex} /></group>
+                  </group>
+                  {logo(girl)}
+                </MiniCanvas>
+              </>
+            ) : (
+              <>
+                <MiniCanvas view={view} fabric={fabric} label="Blazer only">
+                  <BlazerSchoolModel colour={colour} height={1.9} y={0} wide={1} />
+                  {logo()}
+                </MiniCanvas>
+                <MiniCanvas view={view} fabric={fabric} label="With shirt and trousers">
+                  <BlazerSet blazerColour={colour} shirtColour={shirtColour} shirtPattern={shirtPattern} pantColour={pantColour} />
+                  {logo(small)}
+                </MiniCanvas>
+              </>
+            )}
+          </div>
+          <ViewSwitch view={view} setView={setView} />
         </div>
-        <div className="ds-mode">
-          {['front', 'back', 'side'].map(v => (
-            <button key={v} type="button" aria-pressed={view === v} className={view === v ? 'btn gold' : 'btn ghost'} onClick={() => setView(v)}>
-              {v.charAt(0).toUpperCase() + v.slice(1)}
-            </button>
-          ))}
-        </div>
-        <p className="ds-note small">Drag to rotate. Pinch or scroll to zoom. Each preview moves on its own.</p>
+        <p className="g3d-hint">Drag to rotate · scroll or pinch to zoom · tap Move to slide the garment. Each preview moves on its own.</p>
       </div>
     );
   }
+
   return (
-    <div>
-      <div className="g3d" role="img" aria-label={`3D preview of ${garment}. Use the Front, Back and Side buttons to change the view.`}>
-        <Canvas shadows gl={{ preserveDrawingBuffer: true }} camera={{ position: [0, 0.3, 6], fov: 40 }} dpr={[1, 2]}>
-          <hemisphereLight args={['#ffffff', '#9aa3c0', 1.2]} />
-          <ambientLight intensity={1.0} />
-          <directionalLight position={[4, 6, 5]} intensity={1.4} castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.0004} shadow-normalBias={0.02} shadow-camera-left={-3} shadow-camera-right={3} shadow-camera-top={3} shadow-camera-bottom={-3} shadow-camera-near={1} shadow-camera-far={20} />
-          <directionalLight position={[-4, 3, 4]} intensity={0.9} />
-          <directionalLight position={[0, 3, -6]} intensity={0.8} />
-          <Suspense fallback={null}>
-            {garment === 'Pair'
-              ? <PairScene shirtColour={shirtColour} shirtPattern={shirtPattern} shirtTex={shirtTex} pantColour={pantColour} pantTex={pantTex} />
-              : garment === 'Shirt'
-              ? <SchoolShirtModel colour={colour} pattern={pattern} texUrl={shirtTex} />
-              : /trouser|pant/i.test(garment)
-              ?<SchoolSet shirtColour={shirtColour} shirtPattern={shirtPattern} shirtTex={shirtTex} pantColour={colour} pantTex={pantTex} />
-                : garment === 'Lab coat'
-                  ? <LabCoatModel colour={colour} pattern={pattern} />
-                  : (garment === 'Scrub top' || garment === 'Salon wear')
-                    ? <ScrubTopModel colour={colour} pattern={pattern} />
-                    : garment === 'Apron'
-                      ? <ApronModel colour={colour} pattern={pattern} />
-                      : garment === 'Skirt'
-                        ? <SkirtModel colour={colour} pattern={pattern} />
-                        : garment === 'Pinafore'
-                          ? <PinaforeModel colour={colour} pattern={pattern} />
-                          : garment === 'Blazer'
-                          ? <BlazerPair view={view} colour={colour} shirtColour={shirtColour} shirtPattern={shirtPattern} />
+    <div className="g3d-wrap">
+      <div className="g3d-stage">
+        <div className="g3d" role="img" aria-label={`3D preview of ${garment}. Use the Front, Back and Side buttons to change the view.`}>
+          <Canvas shadows gl={{ preserveDrawingBuffer: true, antialias: true }} camera={{ position: [0, 0.3, 5.4], fov: 40 }} dpr={[1, 2]}>
+            <StudioLights shadows />
+            <Suspense fallback={null}>
+              {garment === 'Shirt'
+                ? <SchoolShirtModel colour={colour} pattern={pattern} texUrl={shirtTex} panels={shirtPanels} sleeve={sleeve} />
+                : /trouser|pant/i.test(garment)
+                  ? <SchoolSet shirtColour={shirtColour} shirtPattern={shirtPattern} shirtTex={shirtTex} pantColour={colour} pantTex={pantTex} panels={shirtPanels || {}} sleeve={sleeve} />
+                  : garment === 'Lab coat'
+                    ? <LabCoatModel colour={colour} pattern={pattern} />
+                    : (garment === 'Scrub top' || garment === 'Salon wear')
+                      ? <ScrubTopModel colour={colour} pattern={pattern} />
+                      : garment === 'Apron'
+                        ? <ApronModel colour={colour} pattern={pattern} />
+                        : garment === 'Skirt'
+                          ? <SkirtModel colour={colour} pattern={pattern} />
+                          : garment === 'Pinafore'
+                            ? <PinaforeModel colour={colour} pattern={pattern} />
                             : garment === 'Chef coat'
                               ? <ChefCoatModel colour={colour} pattern={pattern} />
                               : garment === 'Hi-vis jacket'
                                 ? <HiVisModel colour={colour} />
                                 : garment === 'Gown'
                                   ? <GownModel colour={colour} />
-                                : garment === 'Coverall'
-                                ? <CoverallModel colour={colour} />
-                                : <Garment garment={garment} colour={colour} pattern={pattern} />}
-            {logoUrl && <LogoPlane url={logoUrl} pos={logoPos} />}
-          </Suspense>
-          <ContactShadows position={[0, -1.25, 0]} opacity={0.35} scale={8} blur={2.5} far={3} />
-          <OrbitControls ref={controls} enablePan screenSpacePanning zoomToCursor minDistance={1.5} maxDistance={10} />
-          <CameraRig view={view} controls={controls} />
-          <ShadowRig />
-        </Canvas>
+                                  : garment === 'Coverall'
+                                    ? <CoverallModel colour={colour} />
+                                    : <Garment garment={garment} colour={colour} pattern={pattern} />}
+              {logo()}
+            </Suspense>
+            <StageExtras fabric={fabric} shadows />
+            <OrbitControls ref={controls} enablePan screenSpacePanning zoomToCursor enableDamping dampingFactor={0.12} minDistance={1.5} maxDistance={10} />
+            <CameraRig view={view} controls={controls} dist={5.4} />
+          </Canvas>
+        </div>
+        <ViewSwitch view={view} setView={setView} />
       </div>
-      <div className="ds-mode">{['front', 'back', 'side'].map(v => (
-  <button
-    key={v}
-    type="button"
-    aria-label={`View ${v}`}
-    aria-pressed={view === v}
-    className={view === v ? 'btn gold' : 'btn ghost'}
-    onClick={() => setView(v)}
-  >
-    {v.charAt(0).toUpperCase() + v.slice(1)}
-  </button>
-))}
-      </div>
-      {garment === 'Blazer' && (
-  <div className="ds-mode">
-    <button type="button" className={!blazerOnly ? 'btn gold' : 'btn ghost'} onClick={() => setBlazerOnly(false)}>With shirt and trouser</button>
-    <button type="button" className={blazerOnly ? 'btn gold' : 'btn ghost'} onClick={() => setBlazerOnly(true)}>Blazer only</button>
-  </div>
-)}
-      <p className="ds-note small">Drag to rotate. Pinch or scroll to zoom.</p>
+      <p className="g3d-hint">Drag to rotate · scroll or pinch to zoom · right-click drag to move.</p>
     </div>
   );
 }
 
-
-function Lights() {
-  return (
-    <>
-      <hemisphereLight args={['#ffffff', '#9aa3c0', 1.2]} />
-      <ambientLight intensity={1.0} />
-      <directionalLight position={[4, 6, 5]} intensity={1.4} />
-      <directionalLight position={[-4, 3, 4]} intensity={0.9} />
-      <directionalLight position={[0, 3, -6]} intensity={0.8} />
-    </>
-  );
-}
-
-function MiniCanvas({ view, children }) {
+function MiniCanvas({ view, fabric, label, children }) {
   const controls = useRef();
   const [move, setMove] = useState(false);
   return (
-    <div className="g3d g3d-half" style={{ position: 'relative' }}>
-      <button
-        type="button"
-        className={move ? 'btn gold' : 'btn ghost'}
-        style={{ position: 'absolute', top: 8, right: 8, zIndex: 2, padding: '4px 10px', fontSize: 12 }}
-        onClick={() => setMove(m => !m)}
-      >
+    <div className="g3d g3d-half" role="img" aria-label={`3D preview: ${label}`}>
+      {label && <span className="g3d-label">{label}</span>}
+      <button type="button" className={move ? 'g3d-chip on' : 'g3d-chip'} aria-pressed={move}
+        title={move ? 'Dragging moves the garment' : 'Dragging rotates the garment'} onClick={() => setMove(m => !m)}>
         {move ? 'Move' : 'Rotate'}
       </button>
-      <Canvas gl={{ preserveDrawingBuffer: true }} camera={{ position: [0, 0.3, 6], fov: 40 }} dpr={[1, 2]}>
-        <Lights />
+      <Canvas gl={{ preserveDrawingBuffer: true, antialias: true }} camera={{ position: [0, 0.3, 6], fov: 40 }} dpr={[1, 2]}>
+        <StudioLights />
         <Suspense fallback={null}>{children}</Suspense>
-        <ContactShadows position={[0, -1.25, 0]} opacity={0.35} scale={8} blur={2.5} far={3} />
+        <StageExtras fabric={fabric} />
         <OrbitControls
           ref={controls}
           enablePan
           screenSpacePanning
+          enableDamping
+          dampingFactor={0.12}
           minDistance={1.5}
           maxDistance={10}
           mouseButtons={{ LEFT: move ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN }}
