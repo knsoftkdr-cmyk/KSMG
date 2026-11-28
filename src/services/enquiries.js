@@ -218,6 +218,17 @@ export async function invoiceSignedUrl(path, downloadName) {
 }
 
 
+export async function listEmailLog() {
+  const { data, error } = await supabase.from('email_log')
+    .select('id, enquiry_id, event, recipient, subject, status, error, created_at')
+    .order('created_at', { ascending: false }).limit(500);
+  if (error) throw error;
+  return data.map(r => ({
+    id: r.id, enquiryId: r.enquiry_id, event: r.event, to: r.recipient, subject: r.subject,
+    status: r.status, error: r.error || '', createdAt: new Date(r.created_at).getTime(),
+  }));
+}
+
 export async function confirmDelivery(enquiryId) {
   const { error } = await supabase.rpc('confirm_delivery', { p_enquiry: enquiryId });
   if (error) throw error;

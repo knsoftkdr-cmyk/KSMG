@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, useLocation, Link } from 'react-router-dom';
 import { getAll } from '../services/db.js';
 import { submitEnquiry } from '../services/enquiries.js';
+import { notifyCustomer } from '../services/notify.js';
 import { useAuth } from '../services/auth.jsx';
 import { INDUSTRIES } from '../data/industries.js';
 import usePageMeta from '../hooks/usePageMeta.js';
@@ -47,6 +48,7 @@ export default function Quote() {
     try {
       const p = products.find(x => x.id === f.productId);
       const id = await submitEnquiry({ ...f, email }, p?.name || '', p?.id || '');
+      notifyCustomer('request_received', { rfqId: id }); // confirmation email; failure must not block the page
       try { sessionStorage.removeItem('ksmg-design'); } catch { /* ignore */ }
       setRfqId(id);
     } catch {

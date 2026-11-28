@@ -3,8 +3,34 @@ import usePageMeta from '../hooks/usePageMeta.js';
 import { makeQuotePdf } from '../services/quotePdf.js';
 import { listEnquiries, setEnquiryStatus, listEvents, addNote, listQuotes, addQuote, sendQuote, listSamples, sendSample, listDispatches, addDispatch } from '../services/enquiries.js';
 import PoDownloads from '../components/PoDownloads.jsx';
-import { listFeedback } from '../services/enquiries.js';
+import { listFeedback, listEmailLog } from '../services/enquiries.js';
+import { notifyCustomer } from '../services/notify.js';
 import InvoiceUpload from '../components/InvoiceUpload.jsx';
+
+const EMAIL_EVENTS = {
+  request_received: 'Request received', quote_sent: 'Quotation sent', sample_sent: 'Sample sent',
+  invoice_uploaded: 'Invoice ready', dispatched: 'Dispatched', status_changed: 'Status update',
+};
+
+function EmailLog({ items }) {
+  return (
+    <details className="rfq-events">
+      <summary>Emails to customer ({items.length})</summary>
+      {items.length === 0 && <p>No emails sent yet.</p>}
+      <ul>
+        {items.map(m => (
+          <li key={m.id}>
+            <strong>{EMAIL_EVENTS[m.event] || m.event}</strong>
+            {' | '}{m.status === 'sent' ? 'Sent' : m.status === 'failed' ? 'Failed' : 'Not sent'}
+            {m.subject && <><br />{m.subject}</>}
+            {m.error && <><br /><small>{m.error}</small></>}
+            <br /><small>{m.to || 'No address'} | {new Date(m.createdAt).toLocaleString()}</small>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
 
 const STATUSES = ['New', 'In review', 'Quoted', 'Accepted', 'Sample sent', 'Sample changes', 'Sample approved', 'PO received', 'In production', 'Quality check', 'Dispatched', 'Delivered', 'Closed'];
 const money = n => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -43,7 +69,7 @@ function Notes({ enquiryId, events, onAdded, onError }) {
   );
 }
 
-function Quotes({ enquiry, quotes, onAdded, onError }) {
+function Quotes({ enquiry, quotes, onAdded, onError, onMail }) {
   const [f, setF] = useState({ price: '', qty: enquiry.quantity ? String(enquiry.quantity) : '', gst: '5', valid: '', note: '' });
   const [busy, setBusy] = useState(false);
   const set = k => e => setF({ ...f, [k]: e.target.value });
@@ -68,9 +94,13 @@ function Quotes({ enquiry, quotes, onAdded, onError }) {
   };
 
   const send = async q => {
-    if (!window.confirm(`Send quote v${q.version} to the customer? They will be able to see it. This cannot be undone.`)) return;
+    if (!window.confirm(`Send quote v${q.version} to the customer? They will be able to see it and will get an email. This cannot be undone.`)) return;
     setBusy(true);
-    try { await sendQuote(q.id); onError(''); await onAdded(); }
+    try {
+      await sendQuote(q.id); onError('');
+      onMail(await notifyCustomer('quote_sent', { enquiryId: enquiry.id, quoteId: q.id }));
+      await onAdded();
+    }
     catch { onError('Could not send the quote.'); }
     setBusy(false);
   };
@@ -129,7 +159,7 @@ function Quotes({ enquiry, quotes, onAdded, onError }) {
   );
 }
 
-function Samples({ enquiry, quotes, samples, onAdded, onError }) {
+function Samples({ enquiry, quotes, samples, onAdded, onError, onMail }) {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const accepted = quotes.some(q => q.response === 'accepted');
@@ -140,9 +170,13 @@ function Samples({ enquiry, quotes, samples, onAdded, onError }) {
 
   const send = async () => {
     if (note.length > 2000) return onError('Notes can have at most 2000 characters.');
-    if (!window.confirm('Mark the sample as sent? The customer will see it and can approve it.')) return;
+    if (!window.confirm('Mark the sample as sent? The customer will see it, get an email, and can approve it.')) return;
     setBusy(true);
-    try { await sendSample(enquiry.id, note.trim()); setNote(''); onError(''); await onAdded(); }
+    try {
+      await sendSample(enquiry.id, note.trim()); setNote(''); onError('');
+      onMail(await notifyCustomer('sample_sent', { enquiryId: enquiry.id }));
+      await onAdded();
+    }
     catch (e) { onError(e?.message || 'Could not save the sample.'); }
     setBusy(false);
   };
@@ -180,7 +214,7 @@ function Samples({ enquiry, quotes, samples, onAdded, onError }) {
   );
 }
 
-function Dispatches({ enquiry, items, onAdded, onError }) {
+function Dispatches({ enquiry, items, onAdded, onError, onMail }) {
   const [f, setF] = useState({ courier: '', tracking: '', note: '' });
   const [busy, setBusy] = useState(false);
   const status = enquiry.status || 'New';
@@ -193,13 +227,14 @@ function Dispatches({ enquiry, items, onAdded, onError }) {
     if (courier.length < 2) return onError('Enter the courier or transport name.');
     if (f.tracking.length > 80) return onError('Tracking number can have at most 80 characters.');
     if (f.note.length > 2000) return onError('Notes can have at most 2000 characters.');
-    if (!window.confirm('Save dispatch details? The customer will see them and the status will change to Dispatched.')) return;
+    if (!window.confirm('Save dispatch details? The customer will see them and get an email, and the status will change to Dispatched.')) return;
     setBusy(true);
     try {
       await addDispatch(enquiry.id, courier, f.tracking.trim(), f.note.trim());
       if (!['Dispatched', 'Delivered'].includes(status)) await setEnquiryStatus(enquiry.id, 'Dispatched');
       setF({ courier: '', tracking: '', note: '' });
       onError('');
+      onMail(await notifyCustomer('dispatched', { enquiryId: enquiry.id }));
       await onAdded();
     } catch (e) { onError(e?.message || 'Could not save the dispatch details.'); }
     setBusy(false);
@@ -237,6 +272,9 @@ export default function Enquiries() {
   const [filter, setFilter] = useState('All');
   const [page, setPage] = useState(1);
   const [err, setErr] = useState('');
+  const [mail, setMail] = useState('');
+  const [emails, setEmails] = useState([]);
+  const report = e => r => setMail(`${e.rfqId}: ${r.message}`);
   const load = async () => {
     try {
       setList(await listEnquiries());
@@ -245,13 +283,19 @@ export default function Enquiries() {
       setSamples(await listSamples());
       try { setDispatches(await listDispatches()); } catch { setDispatches([]); }
             try { setFeedback(await listFeedback()); } catch { setFeedback([]); }
+      try { setEmails(await listEmailLog()); } catch { setEmails([]); }
     } catch { setErr('Could not load quote requests.'); setList(l => l || []); }
   };
   useEffect(() => { load(); }, []);
 
   const changeStatus = async (e, status) => {
-    setErr('');
-    try { await setEnquiryStatus(e.id, status); } catch { setErr('Could not change the status.'); }
+    const emailNote = status === 'New' ? '' : ' The customer will get an email about it.';
+    if (!window.confirm(`Change ${e.rfqId} to "${status}"?${emailNote}`)) return;
+    setErr(''); setMail('');
+    try {
+      await setEnquiryStatus(e.id, status);
+      if (status !== 'New') report(e)(await notifyCustomer('status_changed', { enquiryId: e.id }));
+    } catch { setErr('Could not change the status.'); }
     load();
   };
 
@@ -266,6 +310,7 @@ export default function Enquiries() {
     <section className="wrap">
       <h1>Quote requests</h1>
       {err && <p className="err" role="alert">{err}</p>}
+      {mail && <p className="note" role="status">{mail}</p>}
       <label className="rfq-filter">Show
         <select value={filter} onChange={e => { setFilter(e.target.value); setPage(1); }}>
           <option>All</option>
@@ -306,16 +351,24 @@ export default function Enquiries() {
 
             <details className="rfq-events rq-manage">
               <summary>Manage request</summary>
-            <Quotes enquiry={e} quotes={mine} onAdded={load} onError={setErr} />
-            <Samples enquiry={e} quotes={mine} samples={samples.filter(x => x.enquiryId === e.id)} onAdded={load} onError={setErr} />
+            <Quotes enquiry={e} quotes={mine} onAdded={load} onError={setErr} onMail={report(e)} />
+            <Samples enquiry={e} quotes={mine} samples={samples.filter(x => x.enquiryId === e.id)} onAdded={load} onError={setErr} onMail={report(e)} />
             <PoDownloads enquiryId={e.id} />
             {e.userId && ['PO received', 'In production', 'Quality check', 'Dispatched', 'Delivered', 'Closed'].includes(status) && (
-              <InvoiceUpload enquiryId={e.id} customerId={e.userId} />
+              <InvoiceUpload
+                enquiryId={e.id}
+                customerId={e.userId}
+                enquiry={e}
+                quote={accepted}
+                dispatch={dispatches.filter(x => x.enquiryId === e.id).slice(-1)[0] || null}
+                onMail={r => { report(e)(r); load(); }}
+              />
             )}
-            <Dispatches enquiry={e} items={dispatches.filter(x => x.enquiryId === e.id)} onAdded={load} onError={setErr} />
+            <Dispatches enquiry={e} items={dispatches.filter(x => x.enquiryId === e.id)} onAdded={load} onError={setErr} onMail={report(e)} />
               {feedback.filter(f => f.enquiryId === e.id).map(f => (
               <p key={f.createdAt} className="quote-reply"><strong>Customer feedback: {f.rating} / 5</strong>{f.comment && <> | {f.comment}</>}</p>
             ))}
+            <EmailLog items={emails.filter(x => x.enquiryId === String(e.id))} />
             <Notes enquiryId={e.id} events={events.filter(x => x.enquiryId === e.id)} onAdded={load} onError={setErr} />
             </details>
           </div>

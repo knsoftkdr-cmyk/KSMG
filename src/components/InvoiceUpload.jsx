@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { listInvoicesFor, uploadInvoice, invoiceSignedUrl } from '../services/enquiries.js';
+import { listInvoicesFor, uploadInvoice, invoiceSignedUrl, listPosFor } from '../services/enquiries.js';
+import { makeInvoiceTemplatePdf } from '../services/quotePdf.js';
+import { notifyCustomer } from '../services/notify.js';
 
 const MAX_BYTES = 5 * 1024 * 1024;
 
-export default function InvoiceUpload({ enquiryId, customerId }) {
+export default function InvoiceUpload({ enquiryId, customerId, enquiry, quote, dispatch, onMail }) {
   const [items, setItems] = useState(null);
   const [no, setNo] = useState('');
   const [file, setFile] = useState(null);
@@ -26,6 +28,13 @@ export default function InvoiceUpload({ enquiryId, customerId }) {
     }
   };
 
+  const template = async () => {
+    setErr('');
+    let po = null;
+    try { po = (await listPosFor(enquiryId))[0] || null; } catch { /* PO line stays blank */ }
+    makeInvoiceTemplatePdf(enquiry, quote, po, dispatch);
+  };
+
   const submit = async () => {
     if (!customerId) return setErr('This request has no customer account.');
     if (!no.trim()) return setErr('Please enter the invoice number.');
@@ -39,6 +48,8 @@ export default function InvoiceUpload({ enquiryId, customerId }) {
       await uploadInvoice(enquiryId, customerId, file, no.trim());
       setFile(null); setNo(''); setFileKey(k => k + 1);
       await load();
+      const mailed = await notifyCustomer('invoice_uploaded', { enquiryId });
+      if (onMail) onMail(mailed);
     } catch (e) {
       setErr(e?.message || 'Could not upload. Please try again.');
     }
@@ -48,6 +59,14 @@ export default function InvoiceUpload({ enquiryId, customerId }) {
   return (
     <div className="po-box">
       <h3>Invoices {items ? `(${items.length})` : ''}</h3>
+      {enquiry && quote && (
+        <p className="note">
+          Need an invoice format? Download the template. It already has the customer, PO, items, price and GST from
+          quote v{quote.version}. Fill in the invoice number, GSTINs and HSN code, tick one tax option, sign it, then upload the PDF here.
+          <br />
+          <button type="button" className="btn ghost" onClick={template}>Download invoice template</button>
+        </p>
+      )}
       {items && items.length > 0 && (
         <ul>
           {items.map(it => (

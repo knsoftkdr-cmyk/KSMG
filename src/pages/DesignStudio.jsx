@@ -4,6 +4,7 @@ import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import { fabricSpec, FABRIC_FIELDS, COLLAR_STYLES, SLEEVE_STYLES } from '../data/fabrics.js';
 import { shareUrl, readShareCode } from '../services/share.js';
 import { submitEnquiry } from '../services/enquiries.js';
+import { notifyCustomer } from '../services/notify.js';
 import { INDUSTRIES } from '../data/industries.js';
 import usePageMeta from '../hooks/usePageMeta.js';
 import { useAuth } from '../services/auth.jsx';
@@ -423,6 +424,7 @@ const orderSum = orderLines.reduce((a, l) => a + l.lineTotal, 0);
         name: ap.name.trim(), organisation: ap.org.trim(), industry: indName, email: user.email, phone: '',
         quantity: total > 0 ? String(total) : '', location: '', neededBy: '', message: lines.join('\n'),
       }, `Design approval: ${answer === 'approve' ? 'approved' : 'changes requested'}`);
+      notifyCustomer('request_received', { rfqId: id }); // confirmation email; failure must not block the page
       setApDone({ id, answer });
     } catch {
       setApErr('Could not send. Please try again.');

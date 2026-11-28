@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { listPosFor, uploadPo } from '../services/enquiries.js';
+import { makePoTemplatePdf } from '../services/quotePdf.js';
 
 const MAX_BYTES = 5 * 1024 * 1024;
 
-export default function PoUpload({ enquiryId }) {
+export default function PoUpload({ enquiryId, enquiry, quote }) {
   const [pos, setPos] = useState(null);
   const [poNo, setPoNo] = useState('');
   const [file, setFile] = useState(null);
@@ -36,6 +37,16 @@ export default function PoUpload({ enquiryId }) {
     <div className="po-box">
       <h3>Purchase order</h3>
       <p>You accepted a quote. Please upload your purchase order (PDF, JPG or PNG, up to 5 MB).</p>
+      {enquiry && quote && (
+        <p className="note">
+          No purchase order format? Download our template. It already has the items, quantity and price from
+          quote v{quote.version}. Fill in your company details, sign it, add your company stamp, then upload a scan or photo here.
+          <br />
+          <button type="button" className="btn ghost" onClick={() => makePoTemplatePdf(enquiry, quote)}>
+            Download PO template
+          </button>
+        </p>
+      )}
       {pos && pos.length > 0 && (
         <ul>
           {pos.map(p => (

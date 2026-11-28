@@ -265,7 +265,13 @@ export default function MyRequests() {
             {locked && !closed && waitingSample && (
               <p className="note">Please approve the sample before uploading a purchase order.</p>
             )}
-            {locked && !closed && !waitingSample && <PoUpload enquiryId={r.id} />}
+            {locked && !closed && !waitingSample && (
+              <PoUpload
+                enquiryId={r.id}
+                enquiry={{ rfqId: r.rfqId, email: user.email, productName: r.productName, location: r.location, neededBy: r.neededBy }}
+                quote={r.quotes.find(q => q.response === 'accepted')}
+              />
+            )}
                         <InvoiceDownloads enquiryId={r.id} />
                                     {r.status === 'Delivered' && <FeedbackBox enquiryId={r.id} />}
           </div>
